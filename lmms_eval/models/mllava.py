@@ -8,7 +8,10 @@ from lmms_eval.api.registry import register_model
 from accelerate import Accelerator, DistributedType
 from accelerate.state import AcceleratorState
 from typing import List, Optional, Union, Tuple
-from transformers import LlavaForConditionalGeneration, LlavaNextForConditionalGeneration, AutoProcessor
+
+from mantis.models.conversation import Conversation, SeparatorStyle
+from mantis.models.mllava import LlavaForConditionalGeneration, MLlavaProcessor, chat_mllava
+from mantis.models.mllava.utils import conv_templates
 
 import warnings
 
@@ -18,22 +21,29 @@ from loguru import logger as eval_logger
 
 DEFAULT_IMAGE_TOKEN = "<image>"
 
-# Default chat for llava-hf/llava-1.5 models: https://huggingface.co/collections/llava-hf/llava-15-65f762d5b6941db5c2ba07e0
-VICUNA_CHAT_TEMPLATE = "{% for message in messages %}{% if loop.index0 == 0 %}A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. USER: {{ message['content'] }} {% elif message['role'] == 'user' %}USER: {{ message['content'] }} {% else %} ASSISTANT: {{ message['content'] }}{{ eos_token }}{% endif %}{% endfor %}{% if add_generation_prompt %}{{ 'ASSISTANT:' }}{% endif %}"
+# default llama 3 template: https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct/blob/main/tokenizer_config.json#L2053
+conv_llama_3_elyza = Conversation(
+    system="<|start_header_id|>system<|end_header_id|>\n\nあなたは誠実で優秀な日本人のアシスタントです。特に指示が無い場合は、常に日本語で回答してください。",
+    roles=("user", "assistant"),
+    messages=(),
+    offset=0,
+    sep_style=SeparatorStyle.LLAMA_3,
+    sep="<|eot_id|>",
+)
+conv_templates["llama_3"] = conv_llama_3_elyza
 
-
-@register_model("llava_hf")
-class LlavaHf(lmms):
+@register_model("mllava")
+class MLlava(lmms):
     """
-    Llava Model for Hugging Face Transformers: https://huggingface.co/docs/transformers/v4.39.3/en/model_doc/llava
+    Mantis Llava Model for Hugging Face Transformers: https://github.com/TIGER-AI-Lab/Mantis
 
-    Adapted from the InstructBLIP model in lmms_eval/models/instructblip.py
+    Adapted from the LlavaHF  model in lmms_eval/models/llava_hf.py
 
     Example usage:
 
     accelerate launch --num_processes=8 --main_process_port 12345 -m lmms_eval \
-        --model llava_hf \
-        --model_args pretrained=llava-hf/llava-1.5-7b-hf \
+        --model mllava \
+        --model_args pretrained=TIGER-Lab/Mantis-8B-siglip-llama3 \
         --tasks seedbench \
         --batch_size 1 \
         --output_path ./logs/ \
@@ -42,17 +52,15 @@ class LlavaHf(lmms):
 
     def __init__(
         self,
-        pretrained: str = "llava-hf/llava-1.5-7b-hf",
+        pretrained: str = "TIGER-Lab/Mantis-8B-siglip-llama3",
         revision: str = "main",
         device: str = "cuda",
         dtype: Optional[Union[str, torch.dtype]] = "auto",
         batch_size: int = 1,
-        trust_remote_code: Optional[bool] = False,
         attn_implementation: Optional[str] = None,
         device_map: str = "",
         chat_template: Optional[str] = None,
         use_cache: bool = True,
-        fast_tokenizer: Optional[bool] = None,
         **kwargs,
     ) -> None:
         super().__init__()
@@ -69,24 +77,9 @@ class LlavaHf(lmms):
         if isinstance(dtype, str) and dtype != "auto":
             dtype = getattr(torch, dtype)
 
-        if "1.5" in pretrained:
-            self._model = LlavaForConditionalGeneration.from_pretrained(pretrained, revision=revision, torch_dtype=dtype, device_map=self.device_map, trust_remote_code=trust_remote_code, attn_implementation=attn_implementation)
-        elif "1.6" in pretrained:
-            self._model = LlavaNextForConditionalGeneration.from_pretrained(pretrained, revision=revision, torch_dtype=dtype, device_map=self.device_map, trust_remote_code=trust_remote_code, attn_implementation=attn_implementation)
-        else:
-            eval_logger.info("Not sure whether you use 1.5 or 1.6. Use 1.5 by default. This might cause bugs if you are actually using 1.6")
-            self._model = LlavaForConditionalGeneration.from_pretrained(pretrained, revision=revision, torch_dtype=dtype, device_map=self.device_map, trust_remote_code=trust_remote_code, attn_implementation=attn_implementation)
-
+        self._model = LlavaForConditionalGeneration.from_pretrained(pretrained, revision=revision, torch_dtype=dtype, device_map=self.device_map, attn_implementation=attn_implementation)
         self.pretrained = pretrained
-        processor_kwargs = {
-            'revision': revision,
-            'trust_remote_code': trust_remote_code
-        }
-        if fast_tokenizer is not None:
-            processor_kwargs['use_fast'] = fast_tokenizer
-        # strange bug where even if you supply `use_fast=True`, the default value, to AutoProcessor,
-        # the tokenizer will sometimes have the incorrect vocab size
-        self._image_processor = AutoProcessor.from_pretrained(pretrained, **processor_kwargs)
+        self._image_processor = MLlavaProcessor.from_pretrained(pretrained)
         # Pad from left for batched generation: https://huggingface.co/docs/transformers/v4.39.3/en/model_doc/llava#usage-tips
         self._image_processor.tokenizer.padding_side = "left"
         self._tokenizer = self._image_processor.tokenizer
@@ -272,9 +265,8 @@ class LlavaHf(lmms):
             # this is safe to assume because the `grouper` object ensures it.
             gen_kwargs = all_gen_kwargs[0]
 
-            # Set default values for until and max_new_tokens
-            until = [self.tok_decode(self.eot_token_id)]
-
+            # llama 3 eos tokens
+            until = [self.tokenizer.decode(self.tokenizer.eos_token_id), "<|eot_id|>"]
             # Update values from gen_kwargs if present
             if "until" in gen_kwargs:
                 until = gen_kwargs.pop("until")
@@ -298,7 +290,7 @@ class LlavaHf(lmms):
             elif self.tokenizer.chat_template is not None:
                 text = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
             else:
-                self.tokenizer.chat_template = VICUNA_CHAT_TEMPLATE
+                self.tokenizer.chat_template = LLAMA3_CHAT_TEMPLATE
                 text = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
 
             if self.accelerator.is_main_process and doc_id[0] % 100 == 0:
@@ -316,33 +308,19 @@ class LlavaHf(lmms):
             if "num_beams" not in gen_kwargs:
                 gen_kwargs["num_beams"] = 1
             try:
-                cont = self.model.generate(
-                    **inputs,
-                    do_sample=True if gen_kwargs["temperature"] > 0 else False,
-                    temperature=gen_kwargs["temperature"],
-                    top_p=gen_kwargs["top_p"],
-                    num_beams=gen_kwargs["num_beams"],
-                    max_new_tokens=gen_kwargs["max_new_tokens"],
-                    use_cache=self.use_cache,
-                    pad_token_id=self.tokenizer.eos_token_id,
-                )
+                generation_kwargs = {
+                    "do_sample": True if gen_kwargs["temperature"] > 0 else False,
+                    "temperature": gen_kwargs["temperature"],
+                    "top_p": gen_kwargs["top_p"],
+                    "num_beams": gen_kwargs["num_beams"],
+                    "max_new_tokens": gen_kwargs["max_new_tokens"],
+                    "use_cache": self.use_cache,
+                    "pad_token_id": self.tokenizer.eos_token_id,
+                }
+                text_outputs, _ = chat_mllava(context, visuals, self.model, self._image_processor, **generation_kwargs)
             except Exception as e:
                 eval_logger.error(f"Error {e} in generating")
                 cont = ""
-            chat_template = self.chat_template if self.chat_template is not None else self.tokenizer.chat_template
-            try:
-                text_outputs = self.tokenizer.batch_decode(cont, skip_special_tokens=True)[0]
-            except:
-                breakpoint()
-            if "ASSISTANT:" in chat_template:
-                text_outputs = text_outputs.split("ASSISTANT:")[-1].strip()
-            elif "<|assistant|>" in chat_template:
-                text_outputs = text_outputs.split("<|assistant|>")[-1].strip()
-            elif "[/INST]" in chat_template:
-                text_outputs = text_outputs.split("[/INST]")[-1].strip()
-            else:
-                text_outputs = text_outputs.split("ASSISTANT:")[-1].strip()
-
             if self.accelerator.is_main_process and doc_id[0] % 100 == 0:
                 eval_logger.debug(f"Generated text for doc ID {doc_id[0]}:\n\n{text_outputs}\n")
 

@@ -12,14 +12,18 @@ def docvqa_doc_to_visual(doc):
 
 
 def docvqa_doc_to_text(doc, model_specific_prompt_kwargs):
-    question = doc["question"]
+    question = doc["Question"]
     pre_prompt = model_specific_prompt_kwargs["pre_prompt"]
     post_prompt = model_specific_prompt_kwargs["post_prompt"]
     return f"{pre_prompt}{question}{post_prompt}"
 
 
-def docvqa_doc_to_target(doc):
-    return doc["original_answer"]
+def docvqa_doc_to_textonly(doc, model_specific_prompt_kwargs):
+    ocr_text = doc["ocr"]
+    question = doc["Question"]
+    pre_prompt = model_specific_prompt_kwargs["pre_prompt"]
+    post_prompt = model_specific_prompt_kwargs["post_prompt"]
+    return f"All PDF Text: {ocr_text} \n\n {pre_prompt}{question}{post_prompt}"
 
 
 def docvqa_test_process_results(doc, results):
@@ -30,7 +34,7 @@ def docvqa_test_process_results(doc, results):
 
 def docvqa_test_aggregate_results(results, args):
     # save results as json
-    path = generate_submission_file("docqa_hu_test_for_submission.json", args)
+    path = generate_submission_file("docvqa_test_for_submission.json", args)
     with open(path, "w") as f:
         json.dump(results, f)
     logger.info(f"Results saved to {path}")
