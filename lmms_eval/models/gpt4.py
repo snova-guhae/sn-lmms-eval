@@ -210,6 +210,7 @@ class GPT4(lmms):
                     response_data = response.json()
 
                     response_text = response_data["choices"][0]["message"]["content"].strip()
+                    time.sleep(2)
                     break  # If successful, break out of the loop
 
                 except Exception as e:
