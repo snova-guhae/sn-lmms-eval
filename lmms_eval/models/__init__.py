@@ -18,7 +18,6 @@ AVAILABLE_MODELS = {
     "fuyu": "Fuyu",
     "batch_gpt4": "BatchGPT4",
     # "docowl": "DocOwl",
-    "gpt4": "GPT4",
     "gpt4v": "GPT4V",
     "hfmodel": "HFModel",
     "llama8b": "LLaMa8b",

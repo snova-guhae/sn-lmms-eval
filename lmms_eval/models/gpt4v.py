@@ -40,7 +40,17 @@ elif API_TYPE == "azure":
         "api-key": API_KEY,
         "Content-Type": "application/json",
     }
+elif API_TYPE == "sn-azure":
+    endpoint = "https://snova.openai.azure.com/"
+    api_version = "2024-02-15-preview"
+    deployment_name = os.getenv("DEPLOYMENT_NAME", "YOUR_DEPLOYMENT_NAME")
 
+    API_URL = os.getenv("AZURE_ENDPOINT", f"{endpoint}/openai/deployments/{deployment_name}/chat/completions?api-version={api_version}")
+    API_KEY = os.getenv("AZURE_API_KEY", "YOUR_API_KEY")
+    headers = {
+        "api-key": API_KEY,
+        "Content-Type": "application/json",
+    }
 
 @register_model("gpt4v")
 class GPT4V(lmms):
