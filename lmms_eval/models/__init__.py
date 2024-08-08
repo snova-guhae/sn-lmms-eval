@@ -35,6 +35,7 @@ AVAILABLE_MODELS = {
     "qwen_vl_api": "Qwen_VL_API",
     "llava_sglang": "LlavaSglang",
     "idefics2": "Idefics2",
+    "idefics3": "Idefics3",
     "internvl": "InternVLChat",
     "internvl2": "InternVL2",
     "gemini_api": "GeminiAPI",
