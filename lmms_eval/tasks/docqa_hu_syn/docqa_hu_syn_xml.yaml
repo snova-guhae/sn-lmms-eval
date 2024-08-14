@@ -1,9 +1,9 @@
 dataset_path: nhiremath/HungarianDocQA_IT_SynQA
-task: "docqa_hu_syn"
+task: "docqa_hu_syn_xml"
 output_type: generate_until
 test_split: test
 doc_to_visual: !function utils.docvqa_doc_to_visual
-doc_to_text: !function utils.docvqa_doc_to_textonly
+doc_to_text: !function utils.docvqa_doc_to_xmltext
 doc_to_target: !function utils.docvqa_doc_to_target
 generation_kwargs:
   max_new_tokens: 128
