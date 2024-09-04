@@ -59,14 +59,6 @@ if [ -z "$4" ]; then
 else    
     model_args+=",$4"
 fi
-
-
-if [ -z "$4" ]; then
-    echo "No additional model arguments"
-else    
-    model_args+=",$4"
-fi
-# if [[ true ]]; then
 if [[ $model_name == *"gpt"* || $model_name == *"claude"* || $model_name == *"ss_llava"* ]]; then
     export API_TYPE="azure"
     source /import/pa-tools/anaconda/anaconda3/2022-10/etc/profile.d/conda.sh &&  \
@@ -83,8 +75,9 @@ if [[ $model_name == *"gpt"* || $model_name == *"claude"* || $model_name == *"ss
             --tasks ${task_name} \
             --batch_size 1 \
             --log_samples \
+            --limit 2000 \
             --log_samples_suffix "${model_name}" \
-            --output_path logs/${logger_name}
+            --output_path logs/${logger_name} 
 else
     sngpu  --time 105:59:59 --cpu 8 --mem 300000 --gpu 1 \
     --output eval_logs/${logger_name}.log -- \
@@ -98,6 +91,6 @@ else
         export LD_LIBRARY_PATH=/import/ml-sc-scratch5/etashg/miniconda3/lib:$LD_LIBRARY_PATH && \
         export AZURE_ENDPOINT=$AZURE_ENDPOINT && \
         export AZURE_API_KEY=$AZURE_API_KEY && \
-        lmms-eval --model ${model_name} --model_args ${model_args}  --tasks ${task_name} --batch_size 1 --log_samples --log_samples_suffix "${model_name}" --output_path logs/${logger_name}"
+        lmms-eval --model ${model_name} --model_args ${model_args} --tasks ${task_name} --batch_size 1 --limit 2000 --log_samples --log_samples_suffix "${model_name}" --output_path logs/${logger_name}"
 fi
 

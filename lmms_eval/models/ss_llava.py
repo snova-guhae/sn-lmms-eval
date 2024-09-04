@@ -6,6 +6,7 @@ from tqdm import tqdm
 import requests as url_requests
 import time
 import json
+import uuid
 
 from lmms_eval.api.instance import Instance
 from lmms_eval.api.model import lmms
@@ -17,6 +18,54 @@ from PIL import Image
 
 NUM_SECONDS_TO_SLEEP = 30
 from loguru import logger as eval_logger
+
+data = {
+	"instances": [
+		{
+			"prompt": "",
+			"image_content": ""
+		}
+	],
+	"params": {
+		"do_sample": {
+			"type": "bool",
+			"value": "false"
+		},
+		"max_tokens_to_generate": {
+			"type": "int",
+			"value": "1000"
+		},
+		"temperature": {
+			"type": "float",
+			"value": "1"
+		},
+		"top_k": {
+			"type": "int",
+			"value": "50"
+		},
+		"top_logprobs": {
+			"type": "int",
+			"value": "0"
+		},
+		"top_p": {
+			"type": "float",
+			"value": "1"
+		}
+	}
+}
+
+def compress_image(img):
+		# Check if the image exceeds the maximum allowed dimension
+		if img.width > 512 or img.height > 512:
+				# Determine the scaling factor to maintain the aspect ratio
+				scale = min(512 / img.width, 512 / img.height)
+				
+				# Calculate the new dimensions
+				new_width = int(img.width * scale)
+				new_height = int(img.height * scale)
+		img = img.resize((new_width, new_height))
+		return img
+
 
 @register_model("ss_llava")
 class SambaStudioLLaVA(lmms):
@@ -76,42 +125,22 @@ class SambaStudioLLaVA(lmms):
         for contexts, gen_kwargs, doc_to_visual, doc_id, task, split in [reg.args for reg in requests]:
             visuals = [doc_to_visual(self.task_dict[task][split][doc_id])]
             visuals = self.flatten(visuals)
-            
-            img = self.encode_image(visuals[0])
+            img = compress_image(visuals[0])
+            output_buffer = BytesIO()
+            img.save(output_buffer, format="PNG")
+            byte_data = output_buffer.getvalue()
+            encoded_image = base64.b64encode(byte_data).decode('utf-8')
+            # Populate the 'image_content' field with the base64 encoded image
+            data['instances'][0]['image_content'] = encoded_image
+            data['instances'][0]['prompt'] = contexts
+            payload = json.dumps(data, indent=4)
 
-            payload = {
-                "instances": [{
-                    "prompt": contexts,
-                    "image_content": img
-                }]
-            }
-                    
-            if "do_sample" not in gen_kwargs:
-                gen_kwargs["do_sample"] = False
-            if "max_new_tokens" not in gen_kwargs:
-                gen_kwargs["max_new_tokens"] = 1024
-            if gen_kwargs["max_new_tokens"] > 4096:
-                gen_kwargs["max_new_tokens"] = 4096
-            if "temperature" not in gen_kwargs:
-                gen_kwargs["temperature"] = 1
-            if "top_p" not in gen_kwargs:
-                gen_kwargs["top_p"] = 1
-            if "top_k" not in gen_kwargs:
-                gen_kwargs["top_k"] = 50
-            if "top_logprobs" not in gen_kwargs:
-                gen_kwargs["top_logprobs"] = 0
-
-            payload["params"] = {
-                'max_tokens_to_generate': {"type":"int","value":str(gen_kwargs["max_new_tokens"])},
-                'temperature':{"type":"float","value":str(gen_kwargs["temperature"])},
-                'top_p':{"type":"float","value":str(gen_kwargs["top_p"])},
-                'do_sample':{"type":"bool","value":str(gen_kwargs["do_sample"])},
-                'top_k':{"type":"int","value":str(gen_kwargs["top_k"])},
-                'top_logprobs':{"type":"int","value":str(gen_kwargs["top_logprobs"])}
-            }
-
+            response = url_requests.post(self.endpoint_url, headers=self.headers, data=payload)
+            response_data = response.json()
+            response_text = response_data["predictions"][0]["completion"].strip()
             for attempt in range(5):
                 try:
+
                     response = url_requests.post(self.endpoint_url, headers=self.headers, json=payload, timeout=self.timeout)
                     response_data = response.json()
                     response_text = response_data["predictions"][0]["completion"].strip()
@@ -122,12 +151,12 @@ class SambaStudioLLaVA(lmms):
                         error_msg = response.json()
                     except:
                         error_msg = ""
-
-                    eval_logger.info(f"Attempt {attempt + 1} failed with error: {str(e)}.\nReponse: {error_msg}")
+                    print(tmp_name)
+                    # eval_logger.info(f"Attempt {attempt + 1} failed with error: {str(e)}.\nReponse: {error_msg}")
                     if attempt <= 3:
                         time.sleep(NUM_SECONDS_TO_SLEEP)
                     else:  # If this was the last attempt, log and return empty string
-                        eval_logger.error(f"All 5 attempts failed. Last error message: {str(e)}.\nResponse: {response.json()}")
+                        # eval_logger.error(f"All 5 attempts failed. Last error message: {str(e)}.\nResponse: {response.json()}")
                         response_text = ""
 
             res.append(response_text)
