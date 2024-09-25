@@ -17,6 +17,7 @@ AVAILABLE_MODELS = {
     "qwen_vl": "Qwen_VL",
     "fuyu": "Fuyu",
     "batch_gpt4": "BatchGPT4",
+    "mllama": "MLlama",
     # "docowl": "DocOwl",
     "gpt4v": "GPT4V",
     "hfmodel": "HFModel",
