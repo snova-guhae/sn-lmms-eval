@@ -22,7 +22,7 @@ DEFAULT_IMAGE_TOKEN = "<image>"
 class MLlama(lmms):
     def __init__(
         self,
-        pretrained: str = "TIGER-Lab/Mantis-8B-siglip-llama3",
+        pretrained: str = "meta-llama/Llama-3.2-11B-Vision-Instruct",
         revision: str = "main",
         device: str = "cuda",
         dtype: Optional[Union[str, torch.dtype]] = "auto",
@@ -142,7 +142,57 @@ class MLlama(lmms):
         return self.tokenizer.decode(tokens)
 
     def loglikelihood(self, requests: List[Instance]) -> List[Tuple[float, bool]]:
-        raise NotImplementedError
+        res = []
+        pbar = tqdm(total=len(requests), disable=(self.rank != 0), desc="Model Responding")
+
+        for context, doc_to_target, doc_to_visual, doc_id, task, split in [reg.args for reg in requests]:
+            # encode, pad, and truncate contexts for this batch
+            if type(doc_to_target) == str:
+                continuation = doc_to_target
+            else:
+                continuation = doc_to_target(self.task_dict[task][split][doc_id])
+            visuals = [doc_to_visual(self.task_dict[task][split][doc_id])]
+            visuals = self.flatten(visuals)
+
+            # remove the default image token, replace it with a prepended image in the message content
+            context = context.replace(DEFAULT_IMAGE_TOKEN, '')
+            # Apply chat template
+            messages = [
+                {"role": "user", "content": [
+                    {'type': 'image'},
+                    {'type': 'text', 'text': context}
+                ]},
+                {"role": "assistant", "content": continuation}
+            ]
+            prompt = self.tokenizer.apply_chat_template(messages[:-1], tokenize=False, add_generation_prompt=True)
+            prompt_and_continuation = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
+            formatted_contexts = [prompt]
+            formatted_continuation = [prompt_and_continuation]
+            model_inputs = self._image_processor(text=prompt_and_continuation, images=visuals, return_tensors="pt").to(self._device, self.model.dtype)
+            labels = model_inputs["input_ids"].clone()
+            contxt_id = self._image_processor(text=prompt, return_tensors="pt")["input_ids"]
+            labels[0, : contxt_id.shape[1]] = -100
+
+            if self.accelerator.is_main_process and doc_id % 100 == 0:
+                eval_logger.debug(f"Prompt for doc ID {doc_id}:\n\n{formatted_contexts[0]}\n")
+                eval_logger.debug(f"Prompt and continuation for doc ID {doc_id}:\n\n{formatted_continuation[0]}\n")
+
+            with torch.inference_mode():
+                outputs = self.model(**model_inputs, labels=labels)
+            loss = outputs["loss"]
+            logits = torch.nn.functional.log_softmax(outputs["logits"], dim=-1)
+            greedy_tokens = logits.argmax(dim=-1)
+            # account for the eos token
+            cont_toks = model_inputs["input_ids"][:, contxt_id.shape[1]:-1]  # [1, seq]
+            greedy_tokens = greedy_tokens[:, contxt_id.shape[1] : model_inputs["input_ids"].shape[1] - 1]  # [1, seq]
+            greedy_logits = logits[:, contxt_id.shape[1] : model_inputs["input_ids"].shape[1] - 1]
+            greedy_logits = torch.gather(greedy_logits, 2, greedy_tokens.unsqueeze(-1)).squeeze(-1)
+            max_equal = (greedy_tokens == cont_toks).all()
+            res.append((float(greedy_logits.sum()), bool(max_equal), self.tokenizer.decode(greedy_tokens[0])))
+            pbar.update(1)
+
+        pbar.close()
+        return res
 
     def flatten(self, input):
         new_list = []
