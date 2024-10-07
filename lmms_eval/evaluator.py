@@ -356,10 +356,13 @@ def evaluate(
                 # subset instances to only this document id ; sort by idx
                 requests = list(filter(lambda x: x.doc_id == doc_id, task.instances))
                 requests.sort(key=lambda x: x.idx)
-                if full_docs:
-                    metrics = task.process_results(doc, [req.filtered_resps[key] for req in requests], full_docs=docs)
+                reqs = [req.filtered_resps[key] for req in requests]
+                if "<skipped_prediction>" in reqs:
+                    metrics = {"sn_lmms_skipped_count":1}
+                elif full_docs:
+                    metrics = task.process_results(doc, reqs, full_docs=docs)
                 else:
-                    metrics = task.process_results(doc, [req.filtered_resps[key] for req in requests])
+                    metrics = task.process_results(doc, reqs)
                 if log_samples:
                     target = task.doc_to_target(doc)
                     example = {
@@ -469,7 +472,10 @@ def evaluate(
                 group_name, task = task
             else:
                 group_name = None
-
+            if metric == "sn_lmms_skipped_count":
+                eval_logger.warning("Some questions skipped! Metrics will ignore those and therefore may not be as expected!")
+                results[task_name][metric_key] = sum(items)
+                results[task_name]["samples"] = len(items)
             if metric not in task.aggregation():
                 continue
 
