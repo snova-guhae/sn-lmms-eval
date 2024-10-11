@@ -91,13 +91,13 @@ class MMLlamaSambaCloud(lmms):
                 "messages":[{
                             "role": "user",
                             "content":[
-                                {"type":"text","text":contexts},
                                 {
                                     "type":"image_url",
                                     "image_url":{
                                         "url":f"data:image/jpeg;base64,{img}"
                                     }
-                                }
+                                },
+                                {"type":"text","text":contexts}
                             ]
                         }],
                 
