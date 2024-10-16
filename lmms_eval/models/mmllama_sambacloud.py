@@ -65,6 +65,21 @@ class MMLlamaSambaCloud(lmms):
             for j in i:
                 new_list.append(j)
         return new_list
+    
+    def combine_images(self, images: list[Image.Image]) -> Image.Image:
+        """
+        Combine multiple images into a single image.
+        """
+        max_width = max(img.width for img in images)
+        total_height = sum(img.height for img in images)
+        
+        combined_image = Image.new('RGB', (max_width, total_height))
+        y_offset = 0
+        
+        for img in images:
+            combined_image.paste(img, (0, y_offset))
+            y_offset += img.height
+        return combined_image
 
     def generate_until(self, requests) -> List[str]:
         res = []
@@ -73,7 +88,8 @@ class MMLlamaSambaCloud(lmms):
         for contexts, gen_kwargs, doc_to_visual, doc_id, task, split in [reg.args for reg in requests]:
             visuals = [doc_to_visual(self.task_dict[task][split][doc_id])]
             visuals = self.flatten(visuals)
-            
+            if len(visuals) > 1:
+                visuals = [self.combine_images(visuals)]
             img = self.encode_image(visuals[0])
 
             if "max_new_tokens" not in gen_kwargs:
@@ -135,3 +151,5 @@ class MMLlamaSambaCloud(lmms):
 
     def loglikelihood(self, requests: List[Instance]) -> List[Tuple[float, bool]]:
         raise NotImplementedError
+    def generate_until_multi_round(self, requests) -> List[str]:
+        raise NotImplementedError("TODO: Implement multi-round generation")

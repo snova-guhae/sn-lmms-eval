@@ -9,7 +9,7 @@ from accelerate import Accelerator, DistributedType
 from accelerate.state import AcceleratorState
 from typing import List, Optional, Union, Tuple
 from transformers import MllamaForConditionalGeneration, AutoProcessor
-
+from PIL import Image
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -200,6 +200,21 @@ class MLlama(lmms):
             for j in i:
                 new_list.append(j)
         return new_list
+    
+    def combine_images(self, images: list[Image.Image]) -> Image.Image:
+        """
+        Combine multiple images into a single image.
+        """
+        max_width = max(img.width for img in images)
+        total_height = sum(img.height for img in images)
+        
+        combined_image = Image.new('RGB', (max_width, total_height))
+        y_offset = 0
+        
+        for img in images:
+            combined_image.paste(img, (0, y_offset))
+            y_offset += img.height
+        return combined_image
 
     def generate_until(self, requests: List[Instance]) -> List[str]:
         res = []
@@ -227,6 +242,8 @@ class MLlama(lmms):
             split = split[0]
             visuals = [doc_to_visual[0](self.task_dict[task][split][ids]) for ids in doc_id]
             visuals = self.flatten(visuals)
+            if len(visuals) > 1:
+                visuals = [self.combine_images(visuals)]
             # we assume all gen kwargs in the batch are the same
             # this is safe to assume because the `grouper` object ensures it.
             gen_kwargs = all_gen_kwargs[0]
@@ -305,3 +322,5 @@ class MLlama(lmms):
 
         pbar.close()
         return res
+    def generate_until_multi_round(self, requests) -> List[str]:
+        raise NotImplementedError("TODO: Implement multi-round generation")
