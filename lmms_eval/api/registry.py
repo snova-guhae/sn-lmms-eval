@@ -11,7 +11,8 @@ MODEL_REGISTRY = {}
 def register_model(*names):
     # either pass a list or a single alias.
     # function receives them as a tuple of strings
-
+   
+    breakpoint()
     def decorate(cls):
         for name in names:
             assert issubclass(cls, lmms), f"Model '{name}' ({cls.__name__}) must extend lmms class"

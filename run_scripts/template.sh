@@ -1,7 +1,11 @@
 model_name=$1
 task_name=$2
-model_args="attn_implementation=flash_attention_2"
-
+if [[ $model_name == *"llama_vision"* ]]; then
+    model_args="attn_implementation=sdpa"
+else 
+    model_args="attn_implementation=flash_attention_2"
+fi
+echo $model_args
 if [ -z "$3" ]; then
     echo "No pretrained checkpoint"
     logger_name="${model_name}/${task_name}"
@@ -47,7 +51,8 @@ else
     model_args+=",$4"
 fi
 
-if [[ $model_name == *"gpt"* || $model_name == *"claude"* ]]; then
+# if [[ $model_name == *"gpt"* || $model_name == *"claude"* ]]; then
+if [[ true ]]; then 
     export API_TYPE="azure"
     source /import/pa-tools/anaconda/anaconda3/2022-10/etc/profile.d/conda.sh &&  \
         export NCCL_DEBUG=INFO &&  \
@@ -57,13 +62,15 @@ if [[ $model_name == *"gpt"* || $model_name == *"claude"* ]]; then
         export NCCL_IB_DISABLE=1 &&  \
         conda activate /import/ml-sc-scratch5/etashg/miniconda3/envs/mm_eval && \
         export LD_LIBRARY_PATH=/import/ml-sc-scratch5/etashg/miniconda3/lib:$LD_LIBRARY_PATH && \
-        lmms_eval --model ${model_name} \
+        lmms-eval --model ${model_name} \
             --model_args ${model_args}  \
             --tasks ${task_name} \
             --batch_size 1 \
             --log_samples \
+            --device 'cuda' \
             --log_samples_suffix "${model_name}" \
-            --output_path logs/${logger_name}
+            --output_path logs/${logger_name} \
+            --verbosity 'DEBUG'
 else
     sngpu  --time 105:59:59 --cpu 8 --mem 300000 --gpu 1 \
     --output eval_logs/${logger_name}.log -- \
@@ -77,11 +84,12 @@ else
         export LD_LIBRARY_PATH=/import/ml-sc-scratch5/etashg/miniconda3/lib:$LD_LIBRARY_PATH && \
         export AZURE_ENDPOINT=$AZURE_ENDPOINT && \
         export AZURE_API_KEY=$AZURE_API_KEY && \
-        lmms_eval --model ${model_name} \
+        lmms-eval --model ${model_name} \
             --model_args ${model_args}  \
             --tasks ${task_name} \
             --batch_size 1 \
             --log_samples \
+            --device 'cuda' \
             --log_samples_suffix "${model_name}" \
             --output_path logs/${logger_name}"
 fi

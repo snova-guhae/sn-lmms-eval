@@ -57,11 +57,14 @@ class LlamaVision(lmms):
         super().__init__()
         # Do not use kwargs for now
         assert kwargs == {}, f"Unexpected kwargs: {kwargs}"
-
+        breakpoint()
         accelerator = Accelerator()
         if accelerator.num_processes > 1 and device_map == "":
             self._device = torch.device(f"cuda:{accelerator.local_process_index}")
             self.device_map = f"cuda:{accelerator.local_process_index}"
+        elif device_map == "":
+            self._device = torch.device(device)
+            self.device_map = device
         else:
             self._device = torch.device(device)
             self.device_map = device_map
