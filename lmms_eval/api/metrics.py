@@ -405,7 +405,7 @@ def gpt4judge(references, predictions, query):  # This is a passthrough function
                     eval_logger.error(f"All 5 attempts failed. Last error message: {str(e)}.\nResponse: {str(error_msg)}")
                     response = ""
 
-        if response is None: # Rare case of gpt returning empty response
+        if response is None:  # Rare case of gpt returning empty response
             score = 0
         else:
             score = int(extract_number_from_brackets(response))
