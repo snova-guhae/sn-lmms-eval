@@ -423,7 +423,7 @@ def sambajudge(references, predictions, query):  # This is a passthrough functio
     import requests
     import json
 
-    NUM_SECONDS_TO_SLEEP = 45
+    NUM_SECONDS_TO_SLEEP = 30
     from openai import OpenAI
 
     key = os.getenv("SAMBAKEY", None)
@@ -500,7 +500,6 @@ def sambajudge(references, predictions, query):  # This is a passthrough functio
 
 
 def extract_number_from_brackets(string):
-    print(" --- number to be extracted from brackets ----- ", string)
     # Regular expression to find numbers inside double brackets
     match = re.search(r"\[\[(\d+)\]\]", string)
     if match:
