@@ -405,7 +405,10 @@ def gpt4judge(references, predictions, query):  # This is a passthrough function
                     eval_logger.error(f"All 5 attempts failed. Last error message: {str(e)}.\nResponse: {str(error_msg)}")
                     response = ""
 
-        score = int(extract_number_from_brackets(response))
+        if response is None: # Rare case of gpt returning empty response
+            score = 0
+        else:
+            score = int(extract_number_from_brackets(response))
         responses.append(response)
         values.append(score)
 
@@ -420,7 +423,7 @@ def sambajudge(references, predictions, query):  # This is a passthrough functio
     import requests
     import json
 
-    NUM_SECONDS_TO_SLEEP = 30
+    NUM_SECONDS_TO_SLEEP = 45
     from openai import OpenAI
 
     key = os.getenv("SAMBAKEY", None)
@@ -497,6 +500,7 @@ def sambajudge(references, predictions, query):  # This is a passthrough functio
 
 
 def extract_number_from_brackets(string):
+    print(" --- number to be extracted from brackets ----- ", string)
     # Regular expression to find numbers inside double brackets
     match = re.search(r"\[\[(\d+)\]\]", string)
     if match:
