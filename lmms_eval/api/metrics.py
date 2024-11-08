@@ -427,7 +427,7 @@ def sambajudge(references, predictions, query):  # This is a passthrough functio
     if key is None:
         raise ValueError("API key not found. Please set the SAMBAKEY environment variable.")
     client = OpenAI(
-        base_url="https://fast-api.snova.ai/v1/",
+        base_url="https://api.sambanova.ai/v1/",
         api_key=key,
     )
 
