@@ -24,11 +24,12 @@ AVAILABLE_MODELS = {
     "sambalingohu": "SambaLingoHU",
     "ocrgpt4": "OCRGPT4",
     "ss_llava": "SambaStudioLLaVA",
+    "auroracap": "AuroraCap",
     "batch_gpt4": "BatchGPT4",
     "claude": "Claude",
     "cogvlm2": "CogVLM2",
     "from_log": "FromLog",
-    # "docowl": "DocOwl",    
+    # "docowl": "DocOwl",
     "fuyu": "Fuyu",
     "gemini_api": "GeminiAPI",
     "gpt4v": "GPT4V",
@@ -41,12 +42,14 @@ AVAILABLE_MODELS = {
     "llava": "Llava",
     "llava_hf": "LlavaHf",
     "llava_onevision": "Llava_OneVision",
+    "llava_onevision_moviechat": "Llava_OneVision_MovieChat",
     "llava_sglang": "LlavaSglang",
     "llava_vid": "LlavaVid",
     "longva": "LongVA",
     "mantis": "Mantis",
     "minicpm_v": "MiniCPM_V",
     "minimonkey": "MiniMonkey",
+    "moviechat": "MovieChat",
     "mplug_owl_video": "mplug_Owl",
     "phi3v": "Phi3v",
     "qwen_vl": "Qwen_VL",
@@ -74,8 +77,12 @@ def get_model(model_name):
         raise ValueError(f"Model {model_name} not found in available models.")
 
     model_class = AVAILABLE_MODELS[model_name]
+    if "." not in model_class:
+        model_class = f"lmms_eval.models.{model_name}.{model_class}"
+
     try:
-        module = __import__(f"lmms_eval.models.{model_name}", fromlist=[model_class])
+        model_module, model_class = model_class.rsplit(".", 1)
+        module = __import__(model_module, fromlist=[model_class])
         return getattr(module, model_class)
     except Exception as e:
         logger.error(f"Failed to import {model_class} from {model_name}: {e}")
@@ -87,7 +94,4 @@ if os.environ.get("LMMS_EVAL_PLUGINS", None):
     for plugin in os.environ["LMMS_EVAL_PLUGINS"].split(","):
         m = importlib.import_module(f"{plugin}.models")
         for model_name, model_class in getattr(m, "AVAILABLE_MODELS").items():
-            try:
-                exec(f"from {plugin}.models.{model_name} import {model_class}")
-            except ImportError as e:
-                logger.debug(f"Failed to import {model_class} from {model_name}: {e}")
+            AVAILABLE_MODELS[model_name] = f"{plugin}.models.{model_name}.{model_class}"
