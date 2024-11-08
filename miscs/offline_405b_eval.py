@@ -9,26 +9,27 @@ from lmms_eval.api.metrics import sambajudge, mean_stderr
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--result-json', type=str, required=True)
+    parser.add_argument('--result-jsonl', type=str, required=True)
     args = parser.parse_args()
 
     if os.getenv('SAMBAKEY') is None:
         raise ValueError('SAMBAKEY is not set in environment!')
 
-    result_json_path = Path(args.result_json)
-    parent_dir = result_json_path.parent.absolute()
-    sambajudge_completions_path = parent_dir / f'{result_json_path.stem}_405bjudge_completions.jsonl'
-    sambajudge_results_path = parent_dir / f'{result_json_path.stem}_405bjudge_results.json'
+    result_jsonl_path = Path(args.result_jsonl)
+    parent_dir = result_jsonl_path.parent.absolute()
+    sambajudge_completions_path = parent_dir / f'{result_jsonl_path.stem}_405bjudge_completions.jsonl'
+    sambajudge_results_path = parent_dir / f'{result_jsonl_path.stem}_405bjudge_results.json'
 
     completions_handle = jsonlines.open(sambajudge_completions_path, 'w', flush=True)
 
-    with open(args.result_json) as f:
-        result_json = json.load(f)
+    logs = []
+    with jsonlines.open(args.result_jsonl) as f:
+        for jsonobj in f:
+            logs.append(jsonobj)
 
     samba_judge_logs = []
     correct = []
 
-    logs = result_json['logs']
     for log in tqdm(logs, dynamic_ncols=True, desc=f'Judging answers', total=len(logs)):
 
         reference_answers = [log['target']]
@@ -64,6 +65,6 @@ if __name__ == '__main__':
     with open(sambajudge_results_path, 'w') as f:
         json.dump(sambajudge_json, f)
     print('Done!')
-    print(f'Original results path = {str(result_json_path.absolute())}')
+    print(f'Original results path = {str(result_jsonl_path.absolute())}')
     print(f'sambajudge: {total_correct}')
     print(f'sambajudge_stderr: {mean_stderr(correct)}')

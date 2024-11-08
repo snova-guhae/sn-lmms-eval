@@ -10,7 +10,7 @@ from lmms_eval.api.metrics import gpt4judge, mean_stderr
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--result-json', type=str, required=True)
+    parser.add_argument('--result-jsonl', type=str, required=True)
     args = parser.parse_args()
 
     if os.getenv('AZURE_API_KEY') is None:
@@ -18,21 +18,22 @@ if __name__ == '__main__':
     if os.getenv('AZURE_ENDPOINT') is None:
         raise ValueError('AZURE_ENDPOINT is not set in environment!')
 
-    result_json_path = Path(args.result_json)
-    parent_dir = result_json_path.parent.absolute()
-    gpt4_completions_path = parent_dir / f'{result_json_path.stem}_gpt4judge_completions.jsonl'
-    gpt4_results_path = parent_dir / f'{result_json_path.stem}_gpt4judge_results.json'
+    result_jsonl_path = Path(args.result_jsonl)
+    parent_dir = result_jsonl_path.parent.absolute()
+    gpt4_completions_path = parent_dir / f'{result_jsonl_path.stem}_gpt4judge_completions.jsonl'
+    gpt4_results_path = parent_dir / f'{result_jsonl_path.stem}_gpt4judge_results.json'
 
     completions_handle = jsonlines.open(gpt4_completions_path, 'w', flush=True)
 
-    with open(args.result_json) as f:
-        result_json = json.load(f)
+    logs = []
+    with jsonlines.open(args.result_jsonl) as f:
+        for jsonobj in f:
+            logs.append(jsonobj)
 
     gpt4_judge_logs = []
     correct = []
     skipped = []
 
-    logs = result_json['logs']
     for log in tqdm(logs, dynamic_ncols=True, desc=f'Judging answers', total=len(logs)):
 
         reference_answers = [log['target']]
@@ -78,7 +79,7 @@ if __name__ == '__main__':
     with open(gpt4_results_path, 'w') as f:
         json.dump(gpt4judge_json, f)
     print('Done!')
-    print(f'Original results path = {str(result_json_path.absolute())}')
+    print(f'Original results path = {str(result_jsonl_path.absolute())}')
     print(f'gpt4judge: {total_correct}')
     print(f'gpt4judge_stderr: {mean_stderr(correct)}')
     print(f'Number of content filtered documents: {len(skipped)}')
