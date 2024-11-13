@@ -69,7 +69,6 @@ class MMLlamaTogether(lmms):
         for contexts, gen_kwargs, doc_to_visual, doc_id, task, split in [reg.args for reg in requests]:
             visuals = [doc_to_visual(self.task_dict[task][split][doc_id])]
             visuals = self.flatten(visuals)
-            
             img = self.encode_image(visuals[0])
             if "max_new_tokens" not in gen_kwargs:
                 gen_kwargs["max_new_tokens"] = 1024
@@ -80,7 +79,7 @@ class MMLlamaTogether(lmms):
             for attempt in range(5):
                 try:
                     response = self.client.chat.completions.create(
-                        model="meta-llama/Llama-Vision-Free",
+                        model="meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo",
                         messages=[{
                             "role": "user",
                             "content":[
@@ -93,7 +92,7 @@ class MMLlamaTogether(lmms):
                                 }
                             ]
                         }],
-                        max_tokens=gen_kwargs["max_new_tokens"],
+                        max_tokens=512,
                         temperature=gen_kwargs["temperature"],
                         stop=["<|eot_id|>","<|eom_id|>"],
                         stream=False
@@ -122,3 +121,5 @@ class MMLlamaTogether(lmms):
 
     def loglikelihood(self, requests: List[Instance]) -> List[Tuple[float, bool]]:
         raise NotImplementedError
+    def generate_until_multi_round(self, requests) -> List[str]:
+        raise NotImplementedError("TODO: Implement multi-round generation")
