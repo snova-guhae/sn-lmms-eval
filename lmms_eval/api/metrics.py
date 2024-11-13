@@ -427,14 +427,15 @@ def sambajudge(references, predictions, query):  # This is a passthrough functio
     if key is None:
         raise ValueError("API key not found. Please set the SAMBAKEY environment variable.")
     client = OpenAI(
-        base_url="https://fast-api.snova.ai/v1/",
+        base_url="https://api.sambanova.ai/v1/",
         api_key=key,
     )
-
     for answer in references:
         # preprocess both the answers - gt and prediction
         gt_answer = answer
         det_answer = predictions[0]
+        if len(det_answer) > 50:
+            det_answer = det_answer[-50:]
 
         def create_messages(query, gt_answer, det_answer):
             messages = []
@@ -442,21 +443,21 @@ def sambajudge(references, predictions, query):  # This is a passthrough functio
             messages.append(
                 {
                     "role": "user",
-                    "content": "I am going to give you a question, the answer to the question, and model's answer to the question. You are to tell me if the model is correct. Respond [[1]] if correct and [[0]] if incorrect. Then give me an explanation of your judgement. Here is the question: \n\n What is name of the university in San Diego? \n\n Here is the answer to the question: \n\n University of California, San Diego \n\n Here is the model completion: \n\n UCSD \n\n Judgement:",
+                    "content": f"I am going to give you a question, the answer to the question, and model's answer to the question. You are to tell me if the model is correct. Please allow for a small margin of error in numerical answers, if a tolerance is given, use that. The wrong type of unit is acceptable as long as it can be converted (e.g 1000mA = 1A), missing units are not. Respond [[1]] if correct and [[0]] if incorrect. Then give me an explanation of your judgement. Here is the question: \n\n What is the maximum efficiency achieved overall?\nAnswer the question with a single word or text directly from the chart, be sure to include units if applicable. \n\n Here is the answer to the question: \n\n 96% +/-6.25000 \n\n Here is the model completion: \n\n he maximum efficiency achieved overall is **95%**. \n\n Judgement:",
                 }
             )
-            messages.append({"role": "assistant", "content": "The answer is correct, so I rate [[1]]. \n\n Explanation: UCSD is an appropriate abbreviation for the University of California, San Diego. "})
+            messages.append({"role": "assistant", "content": "[[1]] The model's answer of 95% is within the given tolerance of +/- 6.25% from the correct answer of 96%. This indicates that the model's response is acceptable and can be considered correct."})
             messages.append(
                 {
                     "role": "user",
-                    "content": f"I am going to give you a question, the answer to the question, and model's answer to the question. You are to tell me if the model is correct. Respond [[1]] if correct and [[0]] if incorrect. Then give me an explanation of your judgement. Here is the question: \n\n  What is the capital of France? \n\n Here is the answer to the question: \n\n Paris, France \n\n Here is the model completion: \n\n Monaco \n\n Judgement:",
+                    "content": f"I am going to give you a question, the answer to the question, and model's answer to the question. You are to tell me if the model is correct. Please allow for a small margin of error in numerical answers, if a tolerance is given, use that. The wrong type of unit is acceptable as long as it can be converted (e.g 1000mA = 1A), missing units are not. Respond [[1]] if correct and [[0]] if incorrect. Then give me an explanation of your judgement. Here is the question: \n\n What is the minimum efficiency for VIN=4V?\nAnswer the question with a single word or text directly from the chart, be sure to include units if applicable. \n\n Here is the answer to the question: \n\n 60% +/-6.25000 \n\n Here is the model completion: \n\n **75%** \n\n Judgement:",
                 }
             )
-            messages.append({"role": "assistant", "content": "The answer is incorrect, so I rate [[0]]. \n\n Explanation: The model answers Monaco, but Paris is the capital of France."})
+            messages.append({"role": "assistant", "content": "[[0]] The model's answer of 75% is not within the acceptable range of the given answer, 60% +/- 6.25%. Since 60% + 6.25% = 66.25% and 60% - 6.25% = 53.75%, the model's answer of 75% is above the upper limit."})
             messages.append(
                 {
                     "role": "user",
-                    "content": f"I am going to give you a question, the answer to the question, and model's answer to the question. You are to tell me if the model is correct. Respond [[1]] if correct and [[0]] if incorrect. Then give me an explanation of your judgement. Here is the question: \n\n {query} \n\n Here is the answer to the question: \n\n {gt_answer} \n\n Here is the model completion: \n\n {det_answer} \n\n Judgement:",
+                    "content": f"I am going to give you a question, the answer to the question, and model's answer to the question. You are to tell me if the model is correct. Please allow for a small margin of error in numerical answers, if a tolerance is given, use that. The wrong type of unit is acceptable as long as it can be converted (e.g 1000mA = 1A), missing units are not. Respond [[1]] if correct and [[0]] if incorrect. Then give me an explanation of your judgement. Here is the question: \n\n {query} \n\n Here is the answer to the question: \n\n {gt_answer} \n\n Here is the model completion: \n\n {det_answer} \n\n Judgement:",
                 }
             )
             return messages
@@ -480,7 +481,6 @@ def sambajudge(references, predictions, query):  # This is a passthrough functio
                 extracted_number = extract_number_from_brackets(response_text)
                 if extracted_number is None:
                     print(f"Attempt failed with text: {response_text}.")
-                    print(response_text)
                     breakpoint()
                 score = int(extracted_number)
                 break

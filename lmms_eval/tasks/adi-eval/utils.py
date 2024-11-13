@@ -20,6 +20,12 @@ def adi_eval_doc_to_text(doc, model_specific_prompt_kwargs):
     post_prompt = model_specific_prompt_kwargs["post_prompt"]
     return f"{pre_prompt}{question}{post_prompt}"
 
+def adi_eval_doc_to_target(doc):
+    answer = doc["answer"]
+    if doc["axis_scale"] is not None:
+        answer += f" +/-{doc['axis_scale']/TOLERANCE_SCALE:.5f}"
+    return answer
+
 
 def adi_eval_process_results(doc, results):
     pred = results[0]
