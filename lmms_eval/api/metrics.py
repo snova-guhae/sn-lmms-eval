@@ -426,7 +426,7 @@ def sambajudge(references, predictions, query):  # This is a passthrough functio
     NUM_SECONDS_TO_SLEEP = 30
     from openai import OpenAI
 
-    key = os.getenv("SAMBAKEY", "1834c502-f8aa-467f-8963-f1a29d9e9128")
+    key = os.getenv("SAMBAKEY", None)
     if key is None:
         raise ValueError("API key not found. Please set the SAMBAKEY environment variable.")
     client = OpenAI(
