@@ -256,10 +256,6 @@ def simple_evaluate(
         cli_args=cli_args,
     )
 
-    if hasattr(lm, "_model"):
-        del lm._model
-        torch.cuda.empty_cache()
-
     if lm.rank == 0:
         if isinstance(model, str):
             model_name = model
@@ -483,7 +479,10 @@ def evaluate(
             instances.sort(key=lambda x: x.idx)
         # iterate over different filters used
         for filter_key in task.instances[0].filtered_resps.keys():
-            doc_iterator = task.doc_iterator(rank=RANK, limit=limit, world_size=WORLD_SIZE)
+            if not cli_args.process_with_media:
+                doc_iterator = create_iterator(enumerate(task.eval_docs_no_media), rank=RANK, limit=int(limit) if limit else None, world_size=WORLD_SIZE)
+            else:
+                doc_iterator = task.doc_iterator(rank=RANK, limit=limit, world_size=WORLD_SIZE)
             doc_iterator_for_counting = itertools.islice(range(len(task.test_docs())), RANK, limit, WORLD_SIZE) if task.has_test_docs() else itertools.islice(range(len(task.validation_docs())), RANK, limit, WORLD_SIZE)
             total_docs = sum(1 for _ in doc_iterator_for_counting)
             pbar = tqdm(total=total_docs, desc=f"Postprocessing", disable=(RANK != 0))
@@ -492,7 +491,15 @@ def evaluate(
                 metrics = task.process_results(doc, [req.filtered_resps[filter_key] for req in requests])
                 if log_samples:
                     target = task.doc_to_target(doc)
-                    saved_doc = {key: value for key, value in doc.items() if "image" not in key}
+                    saved_doc = {}
+                    for key, value in doc.items():
+                        # If image is not in key
+                        if "image" not in key:
+                            # If audio is also not the value
+                            if isinstance(value, dict) and "array" in value:
+                                continue
+                            else:
+                                saved_doc[key] = value
                     filtered_arguments = []
                     for req in requests:
                         # check if req.args is a list of tuples, and each item in the list is a serializable object
@@ -527,6 +534,10 @@ def evaluate(
                 pbar.update(1)
 
             pbar.close()
+
+    if hasattr(lm, "_model"):
+        del lm._model
+        torch.cuda.empty_cache()
 
     if WORLD_SIZE > 1:
         # if multigpu, then gather data across all ranks to rank 0
