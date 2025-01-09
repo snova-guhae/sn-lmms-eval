@@ -69,14 +69,14 @@ class Llava_OneVision(lmms):
 
     def __init__(
         self,
-        pretrained: str = "liuhaotian/llava-v1.5-7b",
+        pretrained: str = "lmms-lab/llava-onevision-qwen2-7b-ov",
         truncation: Optional[bool] = True,
         device: Optional[str] = "cuda:0",
         batch_size: Optional[Union[int, str]] = 1,
         model_name: Optional[str] = None,
         attn_implementation: Optional[str] = best_fit_attn_implementation,
         device_map: Optional[str] = "cuda:0",
-        conv_template: Optional[str] = "vicuna_v1",
+        conv_template: Optional[str] = "qwen_1_5",
         use_cache: Optional[bool] = True,
         truncate_context: Optional[bool] = False,  # whether to truncate the context in generation, set it False for LLaVA-1.6
         customized_config: Optional[str] = None,  # ends in json
@@ -279,7 +279,8 @@ class Llava_OneVision(lmms):
 
                     task_type = "video"
 
-                elif type(visual[0]) == PIL.Image.Image:
+                # elif type(visual[0]) == PIL.Image.Image:
+                elif isinstance(visual[0], PIL.Image.Image):
                     image_tensor = process_images(visual, self._image_processor, self._config)
                     if type(image_tensor) is list:
                         image_tensor = [_image.to(dtype=torch.float16, device=self.device) for _image in image_tensor]
