@@ -27,7 +27,7 @@ class WhitespaceFilter(Filter):
 
         return filtered_resps
 
-
+# Extraction prompt comes from mmlongbench-doc paper, but should be applicable to other datasets
 EXTRACTION_PROMPT = """
 Given the question and analysis, you are tasked to extract answers with required
 formats from the free-form analysis.
@@ -133,13 +133,11 @@ class SambaFilter(Filter):
                     "content": EXTRACTION_PROMPT.format(doc["question"],response_text)
                 }
             ]
-            answer = ""
             for attempt in range(self.max_attempts):
                 try:
                     completion = self.client.chat.completions.create(model="Meta-Llama-3.1-405B-Instruct", messages=message, max_tokens=1024, temperature=0.0, stop=["<|eot_id|>", "<|eom_id|>"])
                     response_text = completion.choices[0].message.content
                     extracted_answer = re.findall("Extracted answer: (.*)\n",response_text)[0]
-                    print(response_text,extracted_answer)
                     break
                 except Exception as e:
                     print(f"Attempt {attempt+1} failed with error: {str(e)}")

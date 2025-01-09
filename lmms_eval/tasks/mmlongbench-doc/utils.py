@@ -4,6 +4,7 @@ from lmms_eval.api.metrics import anls
 import json
 
 def mmlongbench_doc_to_visual(doc):
+    # Don't love having to hardcode this path, but the docs aren't super accesible from the HF dataset
     images = convert_from_path(f'/import/ml-sc-scratch1/matte/MMLongBench-Doc/documents/{doc["doc_id"]}')
     return images
 
@@ -22,6 +23,7 @@ def mmlongbench_process_results(doc, results):
     doc["evidence_sources"] = doc["evidence_sources"].replace("'","\"")
     evidence_types = json.loads(doc["evidence_sources"])
 
+    # For now we are skipping Layout questions and questions that need information from multiple pages, ideally we could make the skip filter configurable.
     if len(evidence_pages) > 1 or ("Generalized-text (Layout)" in evidence_types):
         return {"skipped_questions":1}
     
@@ -42,6 +44,7 @@ type_lookup = {
     type(None): "None"
 }
 def mmlong_correct(pred, gt, answer_type):
+    # Correctness logic from mmlongbench-doc paper
     if answer_type == "Int":
         try:
             return int(pred) == int(gt)
