@@ -1,0 +1,2 @@
+FROM nvcr.io/nvidia/pytorch:22.10-py3
+CMD apt-get install libpoppler-dev -y

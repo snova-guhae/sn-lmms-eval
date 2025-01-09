@@ -7,7 +7,6 @@ output_type: generate_until
 doc_to_visual: !function utils.mmlongbench_doc_to_visual
 doc_to_text: !function utils.mmlongbench_doc_to_text
 doc_to_target: "answer"
-#doc_to_target: !function utils.adi_eval_doc_to_target
 generation_kwargs:
   max_new_tokens: 512
   temperature: 0
@@ -50,6 +49,10 @@ metric_list:
   - metric: skipped_questions
     aggregation: sum
     higher_is_better: False
+filter_list:
+  - name: "samba-extract"
+    filter:
+      - function: "samba_filter"
 metadata:
   - version: 0.0
 lmms_eval_specific_kwargs:
