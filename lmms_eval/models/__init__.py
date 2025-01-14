@@ -71,6 +71,7 @@ AVAILABLE_MODELS = {
     "videochat2": "VideoChat2",
     "llama_vision": "LlamaVision",
     "aria": "Aria",
+    "samba_docintel": "SambaDocIntel"
 }
 
 
