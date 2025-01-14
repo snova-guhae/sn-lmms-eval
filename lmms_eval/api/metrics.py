@@ -23,6 +23,9 @@ eval_logger = logging.getLogger("lm-eval")
 def bypass_agg(arr):
     return 999
 
+@register_aggregation("sum")
+def mean(arr):
+    return sum(arr)
 
 @register_aggregation("mean")
 def mean(arr):
