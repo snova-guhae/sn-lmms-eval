@@ -170,7 +170,7 @@ class MLlama(lmms):
             formatted_continuation = [prompt_and_continuation]
             model_inputs = self._image_processor(text=prompt_and_continuation, images=visuals, return_tensors="pt").to(self._device, self.model.dtype)
             labels = model_inputs["input_ids"].clone()
-            contxt_id = self._image_processor(text=prompt, return_tensors="pt")["input_ids"]
+            contxt_id = self._image_processor(text=prompt, images=visuals, return_tensors="pt")["input_ids"]
             labels[0, : contxt_id.shape[1]] = -100
 
             if self.accelerator.is_main_process and doc_id % 100 == 0:
