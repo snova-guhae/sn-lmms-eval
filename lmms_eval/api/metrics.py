@@ -65,6 +65,7 @@ def f1_score(items):
 
 @register_aggregation("binary_mean_f1")
 def binary_mean_f1_score(items):
+    import sklearn
     golds, preds = zip(*items)
     preds = np.array(preds)
     golds = np.array(golds)
@@ -76,6 +77,7 @@ def binary_mean_f1_score(items):
 
 @register_aggregation("binary_f1_0")
 def binary_f1_0_score(items):
+    import sklearn
     golds, preds = zip(*items)
     preds = np.array(preds)
     golds = np.array(golds)
@@ -85,6 +87,7 @@ def binary_f1_0_score(items):
 
 @register_aggregation("binary_f1_1")
 def binary_f1_1_score(items):
+    import sklearn
     golds, preds = zip(*items)
     preds = np.array(preds)
     golds = np.array(golds)
