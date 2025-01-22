@@ -2,11 +2,11 @@ import os
 import re
 import sys
 import unicodedata
-
-import openai
+import os
 
 from lmms_eval.api.filter import Filter
-
+import time
+import json
 
 class WhitespaceFilter(Filter):
     """ """
@@ -29,6 +29,129 @@ class WhitespaceFilter(Filter):
 
         return filtered_resps
 
+# Extraction prompt comes from mmlongbench-doc paper, but should be applicable to other datasets
+EXTRACTION_PROMPT = """
+Given the question and analysis, you are tasked to extract answers with required
+formats from the free-form analysis.
+- Your extracted answers should be one of the following formats: (1) Integer, (2)
+Float, (3) String and (4) List. If you find the analysis the question can not
+be answered from the given documents, type "Not answerable". Exception: If the
+analysis only tells you that it can not read/understand the images or documents,
+type "Fail to answer".
+- Please make your response as concise as possible. Also note that your response
+should be formatted as below:
+‘‘‘
+Extracted answer: [answer]
+Answer format: [answer format]
+‘‘‘
+Please read the following example, then extract the answer from the model response
+and type it at the end of the prompt.
+---
+Question: List the primary questions asked about the services in this report.
+Analysis: The primary questions asked about the services in the report for The Limes
+Residential Home are:
+1. Is the service safe?
+2. Is the service effective?
+3. Is the service caring?
+4. Is the service responsive?
+5. Is the service well-led?
+Extracted answer: [’Is the servife safe?’, ’Is the service effective’, ’Is the serve
+caring?’, ’Is the service responsive?’, ’Is the service well-led?’]
+Answer format: List
+---
+Question: How many regulations of the HSCA 2008 are breached in all according to
+this report?
+Analysis: According to the report, the provider breached 10 Health and Social Care
+Act 2008 (Regulated Activities) Regulations in total. Here are the specifics:
+1. Regulation 13: Safeguarding service users from abuse and improper treatment
+2. Regulation 12: Safe care and treatment
+3. Regulation 18: Staffing
+4. Regulation 11: Need for consent
+5. Regulation 10: Dignity and respect
+6. Regulation 9: Person-centred care
+7. Regulation 17: Good governance
+8. Regulation 18 (CQC Registration Regulations 2009): Notification of other
+incidents
+9. Regulation 18: Failure to maintain an accurate and up-to-date care plan
+27
+10. Regulation 11: Failure to implement the Mental Capacity Act 2005 code of
+practice effectively
+These breaches involve issues concerning staffing, safeguarding, medicines
+management, dignity and respect, consent, care planning, governance, and
+failure to notify the CQC of incidents.
+Extracted answer: 10
+Answer format: Integer
+---
+Question: According to the survey that is the percentage of Chinese who are paying
+more or about the same attention to politics after Trump’s election?
+Analysis: The survey provided does not specify the percentage of Chinese individuals
+specifically who are paying more or about the same attention to politics after
+Trump’s election. The report focuses primarily on American demographics and
+does not include specific details about the Chinese population in relation to
+this question. If you need information about a different demographic or a
+summary of the findings from the American demographic, I can certainly help
+with that!
+Extracted answer: Not answerable
+Answer format: None
+---
+Question: How many quotations from male respondent over 50 years old are included in
+this report?
+Analysis: The image you’ve provided appears to be a screenshot of a document with
+multiple charts. However, the text is too small and blurry to read accurately.
+If you can provide a clearer image or more context, I might be able to help you
+with your question.
+Extracted answer: Fail to answer
+Answer format: None
+---
+Question: {}
+Analysis: {}
+"""
+class SambaFilter(Filter):
+    formatters = {
+        "Integer": int,
+        "String": str,
+        "Float": float,
+        "List": lambda x: json.loads(x.replace("’",'"').replace("\n",'\\n')),
+        "None": lambda x: None
+    }
+    def __init__(self):
+        from openai import OpenAI
+
+        key = os.getenv("SAMBAKEY", None)
+        if key is None:
+            raise ValueError("API key not found. Please set the SAMBAKEY environment variable.")
+        self.client = OpenAI(
+            base_url="https://api.sambanova.ai/v1/",
+            api_key=key,
+        )
+        self.max_attempts = 5
+
+    def apply(self, resps, docs):
+        def extract_answer(response_text, doc):
+            message = [
+                {"role": "system", "content": "You are a highly efficient assistant. You are to be as fair and accurate"},
+                {
+                    "role": "user", 
+                    "content": EXTRACTION_PROMPT.format(doc["question"],response_text)
+                }
+            ]
+            for attempt in range(self.max_attempts):
+                try:
+                    completion = self.client.chat.completions.create(model="Meta-Llama-3.1-405B-Instruct", messages=message, max_tokens=1024, temperature=0.0, stop=["<|eot_id|>", "<|eom_id|>"])
+                    response_text = completion.choices[0].message.content
+                    extracted_answer = re.findall("Extracted answer: (.*)\n",response_text)[0]
+                    break
+                except Exception as e:
+                    print(f"Attempt {attempt+1} failed with error: {str(e)}")
+                    if attempt < self.max_attempts - 1:
+                        time.sleep(30)
+                    else:
+                        print(f"All {self.max_attempts} attempts failed with exception {str(e)}")
+                        raise e
+            return extracted_answer
+        answers = [extract_answer(resp, doc) for resp,doc in zip(resps,docs)]
+        return answers
+        
 
 class RegexFilter(Filter):
     """ """
