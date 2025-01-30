@@ -21,8 +21,8 @@ from loguru import logger as eval_logger
 class SambaDocIntel(lmms):
     def __init__(
         self,
-        endpoint_url: str = "",
-        timeout: int = 120,
+        endpoint_url: str = "http://10.10.1.98:5000/perform_llama_pipeline",
+        timeout: int = 1800,
         **kwargs,
     ) -> None:
         super().__init__()
@@ -75,18 +75,20 @@ class SambaDocIntel(lmms):
 
             images = [self.encode_image(i) for i in visuals]
 
-
             payload = {
-                "doc_id": doc['doc_id'],
+                "identifier": doc['doc_id'],
                 "query": contexts,
-                "images": images
+                "data": images
             }
 
             for attempt in range(5):
                 try:
+                    start_time = time.time()
                     response = url_requests.post(self.endpoint_url, headers=self.headers, json=payload, timeout=self.timeout)
                     response_data = response.json()
                     response_text = response_data["prediction"].strip()
+                    end_time = time.time()
+                    print(f"request took {end_time-start_time}")
                     break  # If successful, break out of the loop
 
                 except Exception as e:
@@ -110,3 +112,5 @@ class SambaDocIntel(lmms):
 
     def loglikelihood(self, requests: List[Instance]) -> List[Tuple[float, bool]]:
         raise NotImplementedError
+    def generate_until_multi_round(self, requests) -> List[str]:
+        raise NotImplementedError("TODO: Implement multi-round generation")
