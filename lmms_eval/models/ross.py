@@ -24,16 +24,16 @@ warnings.filterwarnings("ignore")
 from loguru import logger as eval_logger
 
 try:
-    from llava.constants import DEFAULT_IMAGE_TOKEN, IMAGE_TOKEN_INDEX
-    from llava.conversation import conv_templates
-    from llava.mm_utils import (
+    from ross.constants import DEFAULT_IMAGE_TOKEN, IMAGE_TOKEN_INDEX
+    from ross.conversation import conv_templates
+    from ross.mm_utils import (
         get_model_name_from_path,
         process_images,
         tokenizer_image_token,
     )
-    from llava.model.builder import load_pretrained_model
+    from ross.model.builder import load_pretrained_model
 except Exception as e:
-    eval_logger.debug("LLaVA is not installed. Please install LLaVA to use this model.\nError: %s" % e)
+    eval_logger.debug("Ross is not installed. Please install Ross to use this model.\nError: %s" % e)
 
 # inference implementation for attention, can be "sdpa", "eager", "flash_attention_2". Seems FA2 is not effective during inference: https://discuss.huggingface.co/t/flash-attention-has-no-effect-on-inference/73453/5
 # if is_flash_attn_2_available:
@@ -45,15 +45,15 @@ else:
     best_fit_attn_implementation = "eager"
 
 
-@register_model("llava")
-class Llava(lmms):
+@register_model("ross")
+class Ross(lmms):
     """
-    Llava Model
+    Ross Model
     """
 
     def __init__(
         self,
-        pretrained: str = "liuhaotian/llava-v1.5-7b",
+        pretrained: str = "HaochenWang/ross-qwen2-7b",
         truncation: Optional[bool] = True,
         device: Optional[str] = "cuda:0",
         batch_size: Optional[Union[int, str]] = 1,
@@ -63,7 +63,7 @@ class Llava(lmms):
         conv_template="vicuna_v1",
         use_cache=True,
         tie_weights: bool = True,
-        truncate_context=False,  # whether to truncate the context in generation, set it False for LLaVA-1.6
+        truncate_context=False,  # whether to truncate the context in generation
         customized_config=None,  # ends in json
         **kwargs,
     ) -> None:
@@ -84,23 +84,23 @@ class Llava(lmms):
             self._device = torch.device(f"cuda:{accelerator.local_process_index}")
             self.device_map = f"cuda:{accelerator.local_process_index}"
 
-        llava_model_args = {
+        ross_model_args = {
             "multimodal": True,
         }
         if customized_config is not None:
-            llava_model_args["customized_config"] = customized_config
+            ross_model_args["customized_config"] = customized_config
         if attn_implementation is not None:
-            llava_model_args["attn_implementation"] = attn_implementation
+            ross_model_args["attn_implementation"] = attn_implementation
         if "use_flash_attention_2" in kwargs:
-            llava_model_args["use_flash_attention_2"] = kwargs["use_flash_attention_2"]
+            ross_model_args["use_flash_attention_2"] = kwargs["use_flash_attention_2"]
         model_name = model_name if model_name is not None else get_model_name_from_path(pretrained)
         try:
             # Try to load the model with the multimodal argument
-            self._tokenizer, self._model, self._image_processor, self._max_length = load_pretrained_model(pretrained, None, model_name, device_map=self.device_map, **llava_model_args)
+            self._tokenizer, self._model, self._image_processor, self._max_length = load_pretrained_model(pretrained, None, model_name, device_map=self.device_map, torch_dtype=torch.float16, **ross_model_args)
         except TypeError:
-            # for older versions of LLaVA that don't have multimodal argument
-            llava_model_args.pop("multimodal", None)
-            self._tokenizer, self._model, self._image_processor, self._max_length = load_pretrained_model(pretrained, None, model_name, device_map=self.device_map, **llava_model_args)
+            # for older versions of Ross that don't have multimodal argument
+            ross_model_args.pop("multimodal", None)
+            self._tokenizer, self._model, self._image_processor, self._max_length = load_pretrained_model(pretrained, None, model_name, device_map=self.device_map, torch_dtype=torch.float16, **ross_model_args)
         self._config = self._model.config
         self.model.eval()
         if tie_weights:
@@ -111,7 +111,7 @@ class Llava(lmms):
         self.conv_template = conv_template
         self.use_cache = use_cache
         self.truncate_context = truncate_context
-        # assert self.batch_size_per_gpu == 1, "Llava currently does not support batched generation. See https://github.com/haotian-liu/LLaVA/issues/754. HF Llava also has this issue."
+        assert self.batch_size_per_gpu == 1, "Ross currently does not support batched generation."
         if accelerator.num_processes > 1:
             assert accelerator.distributed_type in [DistributedType.FSDP, DistributedType.MULTI_GPU, DistributedType.DEEPSPEED], "Unsupported distributed type provided. Only DDP and FSDP are supported."
             # If you want to use DistributedType.DEEPSPEED, you have to run accelerate config before using the model
@@ -278,13 +278,10 @@ class Llava(lmms):
         return res
 
     def flatten(self, input):
-        if not input or any(i is None for i in input):
-            return []
         new_list = []
         for i in input:
-            if i:
-                for j in i:
-                    new_list.append(j)
+            for j in i:
+                new_list.append(j)
         return new_list
 
     def generate_until(self, requests: List[Instance]) -> List[str]:
@@ -385,7 +382,7 @@ class Llava(lmms):
             pad_token_ids = self.tokenizer.pad_token_id if self.tokenizer.pad_token_id is not None else self.tokenizer.eos_token_id
             input_ids = self.pad_sequence(input_ids_list, batch_first=True, padding_value=pad_token_ids).to(self.device)
             attention_masks = input_ids.ne(pad_token_ids).to(self.device)
-            # These steps are not in LLaVA's original code, but are necessary for generation to work
+            # These steps are not in Ross's original code, but are necessary for generation to work
             # TODO: attention to this major generation step...
             try:
                 cont = self.model.generate(
@@ -430,4 +427,4 @@ class Llava(lmms):
         return res
 
     def generate_until_multi_round(self, requests) -> List[str]:
-        raise NotImplementedError("TODO: Implement multi-round generation for LLaVA")
+        raise NotImplementedError("TODO: Implement multi-round generation for Ross")
