@@ -46,6 +46,8 @@ if __name__ == '__main__':
         correct_or_not = samba_judge_response_dict['sambajudge']
         responses_this_log = samba_judge_response_dict['samba_for_log']
 
+        if 'sambajudge' in log:
+            log.pop('sambajudge')
         judge_result_this_log = {
             'sambajudge': correct_or_not,
             'samba_for_log': responses_this_log,
