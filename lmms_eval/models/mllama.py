@@ -47,6 +47,8 @@ class MLlama(lmms):
             dtype = getattr(torch, dtype)
 
         self._model = MllamaForConditionalGeneration.from_pretrained(pretrained, revision=revision, torch_dtype=dtype, device_map=self.device_map, attn_implementation=attn_implementation)
+        if self._model.multi_modal_projector.weight.dtype != torch.bfloat16:
+            self._model.multi_modal_projector.to(torch.bfloat16)
         self.pretrained = pretrained
         self._image_processor = AutoProcessor.from_pretrained(pretrained)
         self._image_processor.tokenizer.padding_side = "left"
