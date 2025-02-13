@@ -5,7 +5,7 @@ import json
 
 def mmlongbench_doc_to_visual(doc):
     # Don't love having to hardcode this path, but the docs aren't super accesible from the HF dataset
-    images = convert_from_path(f'/import/ml-sc-scratch1/matte/MMLongBench-Doc/documents/{doc["doc_id"]}')
+    images = convert_from_path(f'/Users/matte/MMLongBench-Doc/documents/{doc["doc_id"]}')
     return images
 
 
