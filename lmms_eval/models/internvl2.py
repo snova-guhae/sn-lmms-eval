@@ -520,8 +520,8 @@ class InternVL2(lmms):
             self._device = torch.device(f"cuda:{accelerator.local_process_index}")
             self.device_map = f"cuda:{accelerator.local_process_index}"
 
-        self._model = AutoModel.from_pretrained(self.path, torch_dtype=torch.bfloat16, low_cpu_mem_usage=True, trust_remote_code=True, device_map=device_map).eval()
-        self._tokenizer = AutoTokenizer.from_pretrained(self.path, trust_remote_code=True, device_map=device_map)
+        self._model = AutoModel.from_pretrained(self.path, torch_dtype=torch.bfloat16, low_cpu_mem_usage=True, trust_remote_code=True, device_map=self.device_map).eval()
+        self._tokenizer = AutoTokenizer.from_pretrained(self.path, trust_remote_code=True, device_map=self.device_map)
 
         if accelerator.num_processes > 1:
             assert accelerator.distributed_type in [DistributedType.FSDP, DistributedType.MULTI_GPU, DistributedType.DEEPSPEED], "Unsupported distributed type provided. Only DDP and FSDP are supported."
@@ -548,7 +548,7 @@ class InternVL2(lmms):
         elif accelerator.num_processes == 1 and device_map == "auto":
             eval_logger.info(f"Using {accelerator.num_processes} devices with tensor parallelism")
             self._rank = 0
-            self._word_size = 1
+            self._world_size = 1
         else:
             eval_logger.info(f"Using single device: {self._device}")
             self.model.to(self._device)
