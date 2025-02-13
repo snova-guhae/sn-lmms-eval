@@ -73,8 +73,8 @@ class Phi3v(lmms):
             eval_logger.info(f"Using single device: {self._device}")
             self.model.to(self._device)
             self._rank = 0
-            self._word_size = 1
             self.accelerator = accelerator
+            self._world_size = 1
 
     @property
     def config(self):

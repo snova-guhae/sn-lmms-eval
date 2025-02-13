@@ -58,7 +58,7 @@ class Qwen2_Audio(lmms):
         self._model = Qwen2AudioForConditionalGeneration.from_pretrained(
             pretrained,
             torch_dtype="auto",
-            device_map=device_map,
+            device_map=self.device_map,
         ).eval()
 
         self.processor = AutoProcessor.from_pretrained(pretrained)
@@ -111,7 +111,7 @@ class Qwen2_Audio(lmms):
         else:
             self.model.to(self._device)
             self._rank = 0
-            self._word_size = 1
+            self._world_size = 1
 
     @property
     def config(self):
