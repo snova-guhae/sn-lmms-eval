@@ -58,6 +58,8 @@ if __name__ == '__main__':
         correct_or_not = gpt4_judge_response_dict['gpt4judge']
         responses_this_log = gpt4_judge_response_dict['gpt4_for_log']
 
+        if 'gpt4judge' in log:
+            log.pop('gpt4judge')
         judge_result_this_log = {
             'gpt4judge': correct_or_not,
             'gpt4_for_log': responses_this_log,
