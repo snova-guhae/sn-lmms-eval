@@ -15,6 +15,7 @@ AVAILABLE_MODELS = {
     "qwen_vl": "Qwen_VL",
     "qwen2_vl": "Qwen2_VL",
     "fuyu": "Fuyu",
+    "mllama": "MLlama",
     "gpt4v": "GPT4V",
     "hfmodel": "HFModel",
     "llama8b": "LLaMa8b",
