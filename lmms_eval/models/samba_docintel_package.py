@@ -17,25 +17,23 @@ from PIL import Image
 NUM_SECONDS_TO_SLEEP = 30
 from loguru import logger as eval_logger
 from docintel import Chains, DocumentIngestion, LayoutDetection, Llama32OCR, MultiVectorTextRetriever
-from docintel import create_basic_logger, cache_crops, load_configs, load_crops
+from docintel import cache_crops, load_config, load_crops
 
 
 @register_model("samba_docintel_package")
 class SambaDocIntelPackage(lmms):
     def __init__(
         self,
-        config_path="config.yaml",
+        config_path="",
         **kwargs,
     ) -> None:
         super().__init__()
-        self.configs = load_configs(config_path)
+        self.config = load_config(config_path=config_path)
         self.ingestor = DocumentIngestion()
-        self.layout_detector = LayoutDetection(layout_detection_configs=self.configs["layout_detection"]["doclaynet"])
-        self.ocr_engine = Llama32OCR(
-            llama_3_2_ocr_configs=self.configs["llama_3_2_ocr"], langchain_chunking_configs=self.configs["langchain_chunking"], llm_configs=self.configs["llm"], additional_processing_configs=self.configs["additional_processing"]
-        )
+        self.layout_detector = LayoutDetection(self.config)
+        self.ocr_engine = Llama32OCR(self.config)
 
-        self.chains = Chains(llm_configs=self.configs["llm"], retrieval_configs=self.configs["retrieval"])
+        self.chains = Chains(self.config)
         self.cache_base = "cache"
 
         accelerator = Accelerator()
@@ -87,7 +85,7 @@ class SambaDocIntelPackage(lmms):
                     crops = self.layout_detector.create_crops_doclaynet(visuals)
                     cache_crops(crops, crops_path)
                 ocr_out = self.ocr_engine.process(crops)
-            ret_setup = MultiVectorTextRetriever(embedding_configs=self.configs["embedding_model"], retrieval_configs=self.configs["retrieval"], cache_base_directory=self.cache_base, identifier=doc_id)
+            ret_setup = MultiVectorTextRetriever(self.config, cache_base_directory=self.cache_base, identifier=doc_id)
 
             retriever = ret_setup.initialize_vectorstore(ocr_output=ocr_out)
             bm25_retriever, bm25_tokenizer = ret_setup.initialize_bm25_retriever()
