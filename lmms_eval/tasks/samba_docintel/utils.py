@@ -2,11 +2,11 @@ from pdf2image import convert_from_path
 from lmms_eval.api.metrics import anls
 
 import json
-
+DOCUMENT_FOLDER = "/import/ml-sc-scratch1/matte/samba_docintel/"
 
 def samba_docintel_doc_to_visual(doc):
     # Don't love having to hardcode this path, but the docs aren't super accesible from the HF dataset
-    images = convert_from_path(f'/import/ml-sc-scratch1/matte/samba_docintel/{doc["doc_id"]}')
+    images = convert_from_path(f'{DOCUMENT_FOLDER}{doc["doc_id"]}')
     return images
 
 
