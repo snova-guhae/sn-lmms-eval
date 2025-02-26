@@ -1,6 +1,8 @@
 from pdf2image import convert_from_path
 from lmms_eval.api.metrics import anls
-
+import os
+import re
+import time
 import json
 
 
@@ -16,6 +18,9 @@ def mmlongbench_doc_to_text(doc, model_specific_prompt_kwargs):
     post_prompt = model_specific_prompt_kwargs["post_prompt"]
     return f"{pre_prompt}{question}{post_prompt}"
 
+
+def mmlongbench_doc_to_target_retrieval(doc):
+    return f"Expected Answer: {doc['answer']}, Expected Pages: {doc['evidence_pages']}, Expected Types: {doc['evidence_sources']}"
 
 def mmlongbench_process_results(doc, results):
     pred = results[0]
@@ -36,6 +41,55 @@ def mmlongbench_process_results(doc, results):
     return_dict[f"evidence_{evidence_type.lower()}"] = score
     return_dict[f"format_{doc['answer_format'].lower()}"] = score
     return return_dict
+
+def mmlongbench_retrieval_process_results(doc, results):
+
+    NUM_SECONDS_TO_SLEEP = 30
+    from openai import OpenAI
+
+    key = os.getenv("SAMBAKEY", os.getenv("SAMBANOVA_API_KEY",None))
+    if key is None:
+        raise ValueError("API key not found. Please set the SAMBAKEY or SAMBANOVA_API_KEY environment variable.")
+    client = OpenAI(
+        base_url="https://api.sambanova.ai/v1/",
+        api_key=key,
+    )
+
+    expected_answer = mmlongbench_doc_to_target_retrieval(doc)
+    messages = []
+    messages.append({"role": "system", "content": "You are a highly efficient assistant. You are to be as fair and accurate"})
+    messages.append(
+        {
+            "role": "user",
+            "content": ("I am going to give you the model's response to a question that involves a retrieval component, the response should mention the page numbers and types of evidence it used to answer the question. I will also give you the expected answer, page numbers, and evidence types for the question. I have 4 criteria I need you to score on:\n" 
+            "- Whether or not the expected page numbers appear to be the main sources cited.\n" 
+            "- Whether or not the expected page numbers are mentioned at all\n" 
+            "- Whether or not the expected evidence types appear to be the main sources cited.\n" 
+            "- Whether or not the expected evidence types are mentioned at all\n" 
+            "Answer in the form of a list with an entry for each criteria in order, 1 if it meets the criteria, 0 if not. For example, if all criteria is met, return [1,1,1,1] or if the page number criterias are met, but not the evidence types, return [1,1,0,0]. Then give me an explanation of your judgement.\n"
+            f"\n Here is the expected evidence to answer the question: \n\n {expected_answer} \n\n Here is the model completion: \n\n {results[0]} \n\n Judgement:"),
+        }
+    )
+    max_attempts = 5
+    for attempt in range(max_attempts):
+        try:
+            completion = client.chat.completions.create(model="Meta-Llama-3.1-405B-Instruct", messages=messages, max_tokens=1024, temperature=0.0, stop=["<|eot_id|>", "<|eom_id|>"])
+            response_text = completion.choices[0].message.content
+            extracted_scores = re.findall(r"(\[\d, ?\d, ?\d, ?\d ?\])",response_text)
+            if extracted_scores is None:
+                print(f"Attempt failed with text: {response_text}.")
+                scores = [0,0,0,0]
+                break
+            scores = json.loads(extracted_scores[0])
+            break
+        except Exception as e:
+            if attempt < max_attempts - 1:
+                time.sleep(NUM_SECONDS_TO_SLEEP)
+            else:
+                raise e
+    page_main, page_mentioned, evidence_main, evidence_mentioned = scores
+    overall = (page_main + page_mentioned + evidence_main + evidence_mentioned)/4
+    return {"overall":overall, "page_main": page_main, "page_mentioned":page_mentioned,"evidence_main": evidence_main, "evidence_mentioned": evidence_mentioned, "samba_for_log": response_text}
 
 
 type_lookup = {int: "Int", str: "Str", float: "Float", list: "List", type(None): "None"}

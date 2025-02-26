@@ -4,7 +4,7 @@ import os
 import json
 import re
 import time
-DOCUMENT_FOLDER = "/import/ml-sc-scratch1/matte/samba_docintel/"
+DOCUMENT_FOLDER = "/import/ml-sc-scratch1/matte/samba_docintel/documents/"
 
 def samba_docintel_doc_to_visual(doc):
     # Don't love having to hardcode this path, but the docs aren't super accesible from the HF dataset
@@ -46,9 +46,9 @@ def samba_docintel_retrieval_process_results(doc, results):
     NUM_SECONDS_TO_SLEEP = 30
     from openai import OpenAI
 
-    key = os.getenv("SAMBAKEY", None)
+    key = os.getenv("SAMBAKEY", os.getenv("SAMBANOVA_API_KEY",None))
     if key is None:
-        raise ValueError("API key not found. Please set the SAMBAKEY environment variable.")
+        raise ValueError("API key not found. Please set the SAMBAKEY or SAMBANOVA_API_KEY environment variable.")
     client = OpenAI(
         base_url="https://api.sambanova.ai/v1/",
         api_key=key,
