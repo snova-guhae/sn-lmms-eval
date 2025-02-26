@@ -117,9 +117,9 @@ class SambaFilter(Filter):
     def __init__(self):
         from openai import OpenAI
 
-        key = os.getenv("SAMBAKEY", None)
+        key = os.getenv("SAMBAKEY", os.getenv("SAMBANOVA_API_KEY", None))
         if key is None:
-            raise ValueError("API key not found. Please set the SAMBAKEY environment variable.")
+            raise ValueError("API key not found. Please set the SAMBAKEY or SAMBANOVA_API_KEY environment variable.")
         self.client = OpenAI(
             base_url="https://api.sambanova.ai/v1/",
             api_key=key,

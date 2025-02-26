@@ -1,30 +1,29 @@
 from pdf2image import convert_from_path
 from lmms_eval.api.metrics import anls
 import os
+import json
 import re
 import time
-import json
+DOCUMENT_FOLDER = "/import/ml-sc-scratch1/matte/samba_docintel/documents/"
 
-
-def mmlongbench_doc_to_visual(doc):
+def samba_docintel_doc_to_visual(doc):
     # Don't love having to hardcode this path, but the docs aren't super accesible from the HF dataset
-    images = convert_from_path(f'/import/ml-sc-scratch1/matte/MMLongBench-Doc/documents/{doc["doc_id"]}')
+    images = convert_from_path(f'{DOCUMENT_FOLDER}{doc["doc_id"]}')
     return images
 
 
-def mmlongbench_doc_to_text(doc, model_specific_prompt_kwargs):
+def samba_docintel_doc_to_text(doc, model_specific_prompt_kwargs):
     question = doc["question"]
     pre_prompt = model_specific_prompt_kwargs["pre_prompt"]
     post_prompt = model_specific_prompt_kwargs["post_prompt"]
     return f"{pre_prompt}{question}{post_prompt}"
 
-
-def mmlongbench_doc_to_target_retrieval(doc):
+def samba_docintel_doc_to_target_retrieval(doc):
     return f"Expected Answer: {doc['answer']}, Expected Pages: {doc['evidence_pages']}, Expected Types: {doc['evidence_sources']}"
 
-def mmlongbench_process_results(doc, results):
+def samba_docintel_process_results(doc, results):
     pred = results[0]
-    score = mmlong_correct(pred, doc["answer"], doc["answer_format"])
+    score = samba_docintel_correct(pred, doc["answer"], doc["answer_format"])
     evidence_pages = json.loads(doc["evidence_pages"])
     doc["evidence_sources"] = doc["evidence_sources"].replace("'", '"')
     evidence_types = json.loads(doc["evidence_sources"])
@@ -42,7 +41,7 @@ def mmlongbench_process_results(doc, results):
     return_dict[f"format_{doc['answer_format'].lower()}"] = score
     return return_dict
 
-def mmlongbench_retrieval_process_results(doc, results):
+def samba_docintel_retrieval_process_results(doc, results):
 
     NUM_SECONDS_TO_SLEEP = 30
     from openai import OpenAI
@@ -55,7 +54,7 @@ def mmlongbench_retrieval_process_results(doc, results):
         api_key=key,
     )
 
-    expected_answer = mmlongbench_doc_to_target_retrieval(doc)
+    expected_answer = samba_docintel_doc_to_target_retrieval(doc)
     messages = []
     messages.append({"role": "system", "content": "You are a highly efficient assistant. You are to be as fair and accurate"})
     messages.append(
@@ -95,7 +94,7 @@ def mmlongbench_retrieval_process_results(doc, results):
 type_lookup = {int: "Int", str: "Str", float: "Float", list: "List", type(None): "None"}
 
 
-def mmlong_correct(pred, gt, answer_type):
+def samba_docintel_correct(pred, gt, answer_type):
     # Correctness logic from mmlongbench-doc paper
     if answer_type == "Int":
         try:
@@ -107,8 +106,8 @@ def mmlong_correct(pred, gt, answer_type):
         return anls_score
     elif answer_type == "Float":
         try:
-            pred_float = float(pred)
-            gt_float = float(gt)
+            pred_float = float(pred.replace("%", ""))
+            gt_float = float(gt.replace("%", ""))
             delta = abs((pred_float - gt_float) / gt_float)
             return delta <= 0.01
         except:
@@ -119,7 +118,7 @@ def mmlong_correct(pred, gt, answer_type):
             gt_list = sorted(json.loads(gt))
             if len(pred_list) != len(gt_list):
                 return 0
-            correctness = [mmlong_correct(x, y, type_lookup[x]) for x, y in zip(pred_list, gt_list)]
+            correctness = [samba_docintel_correct(x, y, type_lookup[x]) for x, y in zip(pred_list, gt_list)]
             return min(correctness)
         except:
             return 0
