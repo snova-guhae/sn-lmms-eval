@@ -471,9 +471,9 @@ def sambajudge(references, predictions, query):  # This is a passthrough functio
         while True:
             messages = create_messages(query, gt_answer, det_answer)
             tokenized_messages = tokenizer.apply_chat_template(messages)
-            if len(tokenized_messages) < 3600:
+            if len(tokenized_messages) < 16000:
                 break
-            ratio = 4000 / len(tokenized_messages)
+            ratio = 16000 / len(tokenized_messages)
             ratio = min(ratio, 0.95)
             query = query[-int(ratio * len(query)) :]
             print("lessening")
