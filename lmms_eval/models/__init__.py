@@ -14,6 +14,7 @@ AVAILABLE_MODELS = {
     ### added models
     "mllava": "MLlava",
     "fuyu": "Fuyu",
+    "mllama": "MLlama",
     "hfmodel": "HFModel",
     "llama8b": "LLaMa8b",
     "llama70b": "LLaMa70b",
