@@ -12,16 +12,16 @@ import yaml
 from loguru import logger as eval_logger
 from openai import OpenAI
 
-JAPANESE_DATA_DIR = Path('/nvmedata/jonathanl/data/multilingual-llava-bench-in-the-wild/japanese')
-QUESTION_FILE = JAPANESE_DATA_DIR / 'question.jsonl'
-ANSWER_FILE = JAPANESE_DATA_DIR / 'answers.jsonl'
-CONTEXT_FILE = JAPANESE_DATA_DIR / 'context.jsonl'
+JAPANESE_DATA_DIR = Path("/nvmedata/jonathanl/data/multilingual-llava-bench-in-the-wild/japanese")
+QUESTION_FILE = JAPANESE_DATA_DIR / "question.jsonl"
+ANSWER_FILE = JAPANESE_DATA_DIR / "answers.jsonl"
+CONTEXT_FILE = JAPANESE_DATA_DIR / "context.jsonl"
 with jsonlines.open(QUESTION_FILE) as f:
-    QUESTIONS = {doc['question_id']: doc['text'] for doc in f}
+    QUESTIONS = {doc["question_id"]: doc["text"] for doc in f}
 with jsonlines.open(ANSWER_FILE) as f:
-    ANSWERS = {doc['question_id']: doc['text'] for doc in f}
+    ANSWERS = {doc["question_id"]: doc["text"] for doc in f}
 with jsonlines.open(CONTEXT_FILE) as f:
-    CONTEXTS = {int(doc['id']) - 1: doc['caption'] for doc in f}
+    CONTEXTS = {int(doc["id"]) - 1: doc["caption"] for doc in f}
 
 NUM_SECONDS_TO_SLEEP = 5
 
@@ -125,9 +125,10 @@ def llava_doc_to_text(doc, lmms_eval_specific_kwargs=None):
         lmms_eval_specific_kwargs = {}
     pre_prompt = lmms_eval_specific_kwargs.get("pre_prompt", "")
     post_prompt = lmms_eval_specific_kwargs.get("post_prompt", "")
-    question_id = doc['question_id']
+    question_id = doc["question_id"]
     japanese_question_text = QUESTIONS[question_id]
     return f"{pre_prompt}{japanese_question_text}{post_prompt}"
+
 
 def llava_process_results(doc, result):
     """
@@ -138,7 +139,7 @@ def llava_process_results(doc, result):
         a dictionary with key: metric name (in this case coco_bleu), value: metric value
     """
     try:
-        question_id = doc['question_id']
+        question_id = doc["question_id"]
         breakpoint()
         question = QUESTIONS[question_id]
         ans1 = ANSWERS[question_id]
