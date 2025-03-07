@@ -12,7 +12,7 @@ import yaml
 from loguru import logger as eval_logger
 from openai import OpenAI
 
-JAPANESE_DATA_DIR = Path("/nvmedata/jonathanl/data/multilingual-llava-bench-in-the-wild/japanese")
+JAPANESE_DATA_DIR = Path("/import/ml-sc-scratch1/jonathanl/data/multilingual-llava-bench-in-the-wild/japanese")
 QUESTION_FILE = JAPANESE_DATA_DIR / "question.jsonl"
 ANSWER_FILE = JAPANESE_DATA_DIR / "answers.jsonl"
 CONTEXT_FILE = JAPANESE_DATA_DIR / "context.jsonl"
