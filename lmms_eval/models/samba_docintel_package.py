@@ -16,7 +16,7 @@ from PIL import Image
 
 NUM_SECONDS_TO_SLEEP = 30
 from loguru import logger as eval_logger
-from docintel import Chains, DocumentIngestion, LayoutDetection, Llama32OCR, MultiVectorTextRetriever
+from docintel import Chains, DocumentIngestion, LayoutDetection, OCREngine, MultiVectorTextRetriever
 from docintel import cache_crops, load_config, load_crops
 
 
@@ -31,7 +31,7 @@ class SambaDocIntelPackage(lmms):
         self.config = load_config(config_path=config_path)
         self.ingestor = DocumentIngestion()
         self.layout_detector = LayoutDetection(self.config)
-        self.ocr_engine = Llama32OCR(self.config)
+        self.ocr_engine = OCREngine(self.config)
 
         self.chains = Chains(self.config)
         self.cache_base = "cache"
@@ -85,11 +85,11 @@ class SambaDocIntelPackage(lmms):
                     crops = self.layout_detector.create_crops_doclaynet(visuals)
                     cache_crops(crops, crops_path)
                 ocr_out = self.ocr_engine.process(crops)
-            ret_setup = MultiVectorTextRetriever(self.config, cache_base_directory=self.cache_base, identifier=doc_id)
-
-            retriever = ret_setup.initialize_vectorstore(ocr_output=ocr_out)
-            bm25_retriever, bm25_tokenizer = ret_setup.initialize_bm25_retriever()
-            answer = self.chains.qa_w_images(retriever=retriever, question=contexts, bm25_retriever=bm25_retriever, bm25_tokenizer=bm25_tokenizer)
+            retriever = MultiVectorTextRetriever(self.config, cache_base_directory=self.cache_base, identifier=doc_id)
+            retriever.initialize_retriever(ocr_output=ocr_out).initialize_bm25_retriever()
+            
+            docs = retriever.retrieve(contexts)
+            answer = self.chains.qa_w_contexts(question=contexts, contexts=docs)
 
             res.append(answer)
             pbar.update(1)

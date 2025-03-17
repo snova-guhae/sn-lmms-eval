@@ -38,7 +38,8 @@ def samba_docintel_process_results(doc, results):
     evidence_type = evidence_types[0] if len(evidence_types) > 0 else "Unanswerable"
     evidence_type = evidence_type.replace(" ", "_")
     return_dict[f"evidence_{evidence_type.lower()}"] = score
-    return_dict[f"format_{doc['answer_format'].lower()}"] = score
+    answer_format = doc['answer_format'] if doc['answer_format'] is not None else "None"
+    return_dict[f"format_{answer_format.lower()}"] = score
     return return_dict
 
 def samba_docintel_retrieval_process_results(doc, results):
@@ -122,5 +123,5 @@ def samba_docintel_correct(pred, gt, answer_type):
             return min(correctness)
         except:
             return 0
-    elif answer_type == "None":
+    elif answer_type.lower() == "none":
         return pred == gt

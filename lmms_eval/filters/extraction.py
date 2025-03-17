@@ -147,7 +147,8 @@ class SambaFilter(Filter):
                         time.sleep(30)
                     else:
                         print(f"All {self.max_attempts} attempts failed with exception {str(e)}")
-                        raise e
+                        extracted_answer = ""
+                        break
             return extracted_answer
         answers = [extract_answer(resp, doc) for resp,doc in zip(resps,docs)]
         return answers
