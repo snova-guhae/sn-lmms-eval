@@ -16,7 +16,7 @@ from PIL import Image
 
 NUM_SECONDS_TO_SLEEP = 30
 from loguru import logger as eval_logger
-from docintel import Chains, DocumentIngestion, LayoutDetection, OCREngine, MultiVectorTextRetriever
+from docintel import Chains, DocumentIngestion, LayoutDetection, OCREngine, MultiVectorTextRetriever, EmbeddingModel
 from docintel import cache_crops, load_config, load_crops
 
 
@@ -85,8 +85,9 @@ class SambaDocIntelPackage(lmms):
                     crops = self.layout_detector.create_crops_doclaynet(visuals)
                     cache_crops(crops, crops_path)
                 ocr_out = self.ocr_engine.process(crops)
-            retriever = MultiVectorTextRetriever(self.config, cache_base_directory=self.cache_base, identifier=doc_id)
-            retriever.initialize_retriever(ocr_output=ocr_out).initialize_bm25_retriever()
+            embedding_model = EmbeddingModel(vector_retrieval_config=self.config)
+            retriever = MultiVectorTextRetriever(embedding_model, self.config, cache_base_directory=self.cache_base, identifier=doc_id)
+            retriever.generate_bm25_index()
             
             docs = retriever.retrieve(contexts)
             answer = self.chains.qa_w_contexts(question=contexts, contexts=docs)
