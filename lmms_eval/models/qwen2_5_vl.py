@@ -82,12 +82,11 @@ class Qwen2_5_VL(lmms):
             ).eval()
         else:
             self._model = Qwen2_5_VLForConditionalGeneration.from_pretrained(pretrained, torch_dtype="auto", device_map=self.device_map).eval()
-        self.processor = AutoProcessor.from_pretrained(pretrained, max_pixels=max_pixels, min_pixels=min_pixels)
         self.max_pixels = max_pixels
         self.min_pixels = min_pixels
         self.max_num_frames = max_num_frames
-        self.processor = AutoProcessor.from_pretrained(pretrained, max_pixels=max_pixels, min_pixels=min_pixels)
-        self._tokenizer = AutoTokenizer.from_pretrained(pretrained)
+        self.processor = AutoProcessor.from_pretrained(pretrained, max_pixels=max_pixels, min_pixels=min_pixels, padding_side="left")
+        self._tokenizer = AutoTokenizer.from_pretrained(pretrained, padding_side="left")
 
         self._config = self.model.config
         self.batch_size_per_gpu = int(batch_size)
@@ -300,7 +299,7 @@ class Qwen2_5_VL(lmms):
                 temperature=gen_kwargs["temperature"],
                 top_p=gen_kwargs["top_p"],
                 num_beams=gen_kwargs["num_beams"],
-                max_new_tokens=4096,
+                max_new_tokens=gen_kwargs["max_new_tokens"],
                 use_cache=self.use_cache,
             )
 

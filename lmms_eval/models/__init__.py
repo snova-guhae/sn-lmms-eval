@@ -56,6 +56,8 @@ AVAILABLE_MODELS = {
     "openai_compatible": "OpenAICompatible",
     "oryx": "Oryx",
     "phi3v": "Phi3v",
+    "phi4_multimodal": "Phi4",
+    "qwen2_5_omni": "Qwen2_5_Omni",
     "qwen2_5_vl": "Qwen2_5_VL",
     "qwen2_5_vl_interleave": "Qwen2_5_VL_Interleave",
     "qwen2_audio": "Qwen2_Audio",
@@ -71,6 +73,7 @@ AVAILABLE_MODELS = {
     "mmllama_sambacloud": "MMLlamaSambaCloud",
     "videoChatGPT": "VideoChatGPT",
     "videochat2": "VideoChat2",
+    "videollama3": "VideoLLaMA3",
     "video_llava": "VideoLLaVA",
     "vila": "VILA",
     "vita": "VITA",
@@ -78,6 +81,11 @@ AVAILABLE_MODELS = {
     "xcomposer2_4KHD": "XComposer2_4KHD",
     "xcomposer2d5": "XComposer2D5",
     "egogpt": "EgoGPT",
+    "internvideo2_5": "InternVideo2_5",
+    "videochat_flash": "VideoChat_Flash",
+    "whisper": "Whisper",
+    "whisper_vllm": "WhisperVllm",
+    "vora": "VoRA",
 }
 
 
