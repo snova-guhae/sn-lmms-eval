@@ -12,6 +12,8 @@ logger.add(sys.stdout, level="WARNING")
 
 AVAILABLE_MODELS = {
     ### added models
+    "llama4": "Llama4",
+    "sambanova": "SambaNova",
     "mllava": "MLlava",
     "fuyu": "Fuyu",
     "mllama": "MLlama",
