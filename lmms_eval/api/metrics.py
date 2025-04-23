@@ -1,15 +1,15 @@
 # the code is adapted from https://github.com/EleutherAI/lm-evaluation-harness
 import math
+import os
 import random
 import re
 import string
+import time
 from collections.abc import Iterable
 from typing import List
 
 import numpy as np
 import sacrebleu
-import os
-import time
 from transformers import AutoTokenizer
 from loguru import logger as eval_logger
 
@@ -411,7 +411,10 @@ def gpt4judge(references, predictions, query):  # This is a passthrough function
                     eval_logger.error(f"All 5 attempts failed. Last error message: {str(e)}.\nResponse: {str(error_msg)}")
                     response = ""
 
-        score = int(extract_number_from_brackets(response))
+        if response is None:  # Rare case of gpt returning empty response
+            score = 0
+        else:
+            score = int(extract_number_from_brackets(response))
         responses.append(response)
         values.append(score)
 
@@ -423,8 +426,9 @@ def sambajudge(references, predictions, query):  # This is a passthrough functio
     """https://github.com/QwenLM/Qwen-VL/blob/master/eval_mm/infographicsvqa_eval.py"""
     values = []
     responses = []
-    import requests
     import json
+
+    import requests
 
     NUM_SECONDS_TO_SLEEP = 30
     from openai import OpenAI
