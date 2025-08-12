@@ -17,7 +17,7 @@ def vqav2_doc_to_visual(doc):
 def vqav2_process_results(doc, result):
     eval_ai_processor = EvalAIAnswerProcessor()
     assert len(result) == 1, f"The result should be a list of length 1, but got {len(result)}."
-    resAns = eval_ai_processor(result[0])
+    resAns = result[0]
     accuracy = 0
 
     if "answers" in doc and doc["answers"] is not None:
@@ -25,15 +25,16 @@ def vqav2_process_results(doc, result):
             ansDic["answer"] = ansDic["answer"].replace("\n", " ")
             ansDic["answer"] = ansDic["answer"].replace("\t", " ")
             ansDic["answer"] = ansDic["answer"].strip()
+        resAns = resAns.replace("\n", " ")
+        resAns = resAns.replace("\t", " ")
+        resAns = resAns.strip()
         gtAcc = []
-        gtAnswers = [ans["answer"] for ans in doc["answers"]]
 
-        if len(set(gtAnswers)) > 1:
-            for ansDic in doc["answers"]:
-                ansDic["answer"] = eval_ai_processor.process_punctuation(ansDic["answer"])
-                ansDic["answer"] = eval_ai_processor.process_digit_article(ansDic["answer"])
-            resAns = eval_ai_processor.process_punctuation(resAns)
-            resAns = eval_ai_processor.process_digit_article(resAns)
+        for ansDic in doc["answers"]:
+            ansDic["answer"] = eval_ai_processor.process_punctuation(ansDic["answer"])
+            ansDic["answer"] = eval_ai_processor.process_digit_article(ansDic["answer"])
+        resAns = eval_ai_processor.process_punctuation(resAns)
+        resAns = eval_ai_processor.process_digit_article(resAns)
 
         for gtAnsDatum in doc["answers"]:
             otherGTAns = [item for item in doc["answers"] if item != gtAnsDatum]
