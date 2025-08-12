@@ -82,7 +82,7 @@ class SambaNova(lmms):
             img = image.copy()
 
         output_buffer = BytesIO()
-        img.save(output_buffer, format="JPEG")
+        img.save(output_buffer, format="PNG")
         byte_data = output_buffer.getvalue()
 
         # If image is too large, resize it while maintaining aspect ratio
@@ -91,7 +91,7 @@ class SambaNova(lmms):
             img = img.resize(new_size, Image.Resampling.LANCZOS)
 
             output_buffer = BytesIO()
-            img.save(output_buffer, format="JPEG")
+            img.save(output_buffer, format="PNG")
             byte_data = output_buffer.getvalue()
 
         base64_str = base64.b64encode(byte_data).decode("utf-8")
@@ -114,7 +114,7 @@ class SambaNova(lmms):
         for frame in frames:
             img = Image.fromarray(frame)
             output_buffer = BytesIO()
-            img.save(output_buffer, format="JPEG")
+            img.save(output_buffer, format="PNG")
             byte_data = output_buffer.getvalue()
             base64_str = base64.b64encode(byte_data).decode("utf-8")
             base64_frames.append(base64_str)
@@ -165,7 +165,7 @@ class SambaNova(lmms):
 
             payload["messages"].append({"role": "user", "content": []})
             for img in imgs:
-                payload["messages"][0]["content"].append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}"}})
+                payload["messages"][0]["content"].append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img}"}})
             payload["messages"][0]["content"].append({"type": "text", "text": contexts})
 
             if "max_new_tokens" not in gen_kwargs:
