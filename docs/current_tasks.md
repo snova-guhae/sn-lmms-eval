@@ -1,7 +1,17 @@
 # Current Tasks
 
 > () indicates the task name in the lmms_eval. The task name is also used to specify the dataset in the configuration file.
-> The following is manually updated documentation. You could use `lmms_eval task --list` to list all supported tasks and their task names.
+
+**Note:** This documentation is manually maintained. For the most up-to-date and complete list of supported tasks, please run:
+```bash
+python -m lmms_eval --tasks list
+```
+
+To see the number of questions in each task:
+```bash
+python -m lmms_eval --tasks list_with_num
+```
+(Note: `list_with_num` will download all datasets and may require significant time and storage)
 
 ## 1. Image tasks:
 
@@ -57,6 +67,7 @@
   - MME-RealWorld English (mmerealworld)
   - MME-RealWorld Mini (mmerealworld_lite)
   - MME-RealWorld Chinese (mmerealworld_cn)
+- [MMRefine](http://mmrefine.github.io/) (mmrefine)
 - [MMStar](https://github.com/MMStar-Benchmark/MMStar) (mmstar)
 - [MMUPD](https://huggingface.co/datasets/MM-UPD/MM-UPD) (mmupd)
   - MMUPD Base (mmupd_base)
@@ -159,6 +170,13 @@
   - WildVision 0617(wildvision_0617)
   - WildVision 0630 (wildvision_0630)
 - [SeedBench 2 Plus](https://huggingface.co/datasets/AILab-CVC/SEED-Bench-2-plus) (seedbench_2_plus)
+- [SalBench](https://salbench.github.io/)
+  - p3
+  - p3_box
+  - p3_box_img
+  - o3
+  - o3_box
+  - o3_box_img
 
 ## 2. Multi-image tasks:
 
@@ -322,6 +340,8 @@
   - VDC Short Caption (short_test)
   - VDC Background Caption (background_test)
   - VDC Main Object Caption (main_object_test)
+
+- [VideoEval-Pro](https://tiger-ai-lab.github.io/VideoEval-Pro/) (videoevalpro)
 
 
 ## 4. Text Tasks

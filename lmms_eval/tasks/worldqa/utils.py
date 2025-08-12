@@ -25,7 +25,7 @@ with open(Path(__file__).parent / "_default_template_yaml", "r") as f:
 
     config = yaml.safe_load("".join(safe_data))
 
-GPT_EVAL_MODEL_NAME = config["metadata"]["gpt_eval_model_name"]
+GPT_EVAL_MODEL_NAME = os.getenv("MODEL_VERSION", "gpt-4o-2024-11-20")
 
 API_TYPE = os.getenv("API_TYPE", "openai")
 
@@ -210,7 +210,7 @@ def worldq_gen_gpt_eval(results, args):
         eval_score = eval_answer.split("\n")[-1].strip()
         try:
             eval_score = float(eval_score)
-        except:
+        except (ValueError, TypeError, AttributeError):
             eval_score = 0.0
         score += eval_score
 

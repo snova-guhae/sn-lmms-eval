@@ -32,6 +32,7 @@ from accelerate import Accelerator
 from datasets import Audio, DownloadConfig, Image, Sequence
 from huggingface_hub import snapshot_download
 from loguru import logger as eval_logger
+from PIL import Image as PIL_Image
 from PIL import ImageFile
 from tenacity import retry, stop_after_attempt, stop_after_delay, wait_fixed
 from tqdm import tqdm
@@ -91,6 +92,7 @@ class TaskConfig(dict):
     doc_to_text: Union[Callable, str] = None
     doc_to_target: Union[Callable, str] = None
     doc_to_choice: Union[Callable, str, dict, list] = None
+    doc_to_messages: Callable = None
     process_results: Union[Callable, str] = None
     use_prompt: str = None
     description: str = ""
@@ -180,7 +182,7 @@ class TaskConfig(dict):
 
 class Task(abc.ABC):
     """A task represents an entire benchmark including its dataset, problems,
-    answers, and evaluation methods. See BoolQ for a simple example implementation
+    answers, and evaluation methods. See MME for a simple example implementation
 
     A `doc` can be any python object which represents one instance of evaluation.
     This is usually a dictionary e.g.
@@ -942,9 +944,14 @@ class ConfigurableTask(Task):
                     force_unzip = dataset_kwargs.get("force_unzip", False)
                     revision = dataset_kwargs.get("revision", "main")
                     create_link = dataset_kwargs.get("create_link", False)
-                    cache_path = snapshot_download(repo_id=self.DATASET_PATH, revision=revision, repo_type="dataset", force_download=force_download, etag_timeout=60)
-                    zip_files = glob(os.path.join(cache_path, "**/*.zip"), recursive=True)
-                    tar_files = glob(os.path.join(cache_path, "**/*.tar*"), recursive=True)
+                    # If the user already has a cache dir, we skip download the zip files
+                    if not os.path.exists(cache_dir):
+                        cache_path = snapshot_download(repo_id=self.DATASET_PATH, revision=revision, repo_type="dataset", force_download=force_download, etag_timeout=60)
+                        zip_files = glob(os.path.join(cache_path, "**/*.zip"), recursive=True)
+                        tar_files = glob(os.path.join(cache_path, "**/*.tar*"), recursive=True)
+                    else:
+                        zip_files = []
+                        tar_files = []
 
                     def unzip_video_data(zip_file):
                         import os
@@ -988,6 +995,7 @@ class ConfigurableTask(Task):
                         # Group tar parts together
                         for tar_file in tar_files:
                             base_name = tar_file.split(".tar")[0]
+                            base_name = re.sub(r"_\d+$", "", base_name)
                             if base_name not in tar_parts_dict:
                                 tar_parts_dict[base_name] = []
                             tar_parts_dict[base_name].append(tar_file)
@@ -1037,10 +1045,9 @@ class ConfigurableTask(Task):
                 dataset_kwargs.pop("create_link")
 
         if dataset_kwargs is not None and "load_from_disk" in dataset_kwargs and dataset_kwargs["load_from_disk"]:
-            dataset_kwargs.pop("load_from_disk")
             # using local task in offline environment, need to process the online dataset into local format via
             # `ds = load_datasets("lmms-lab/MMMU")`
-            self.dataset = datasets.load_from_disk(path=self.DATASET_PATH, name=self.DATASET_NAME)
+            self.dataset = datasets.load_from_disk(dataset_path=self.DATASET_PATH)
         else:
             self.dataset = datasets.load_dataset(
                 path=self.DATASET_PATH,
@@ -1637,3 +1644,53 @@ class ConfigurableTask(Task):
 
     def __repr__(self):
         return f"ConfigurableTask(task_name={getattr(self.config, 'task', None)}," f"output_type={self.OUTPUT_TYPE}," f"num_fewshot={getattr(self.config, 'num_fewshot', None)}," f"num_samples={len(self.eval_docs)})"
+
+
+class ConfigurableMessagesTask(ConfigurableTask):
+    def __init__(self, data_dir=None, cache_dir=None, download_mode=None, config=None, model_name=None):
+        super().__init__(data_dir, cache_dir, download_mode, config, model_name)
+
+    def doc_to_messages(self, doc: dict) -> Union[int, str, list]:
+        if callable(self.config.doc_to_messages):
+            return (
+                self.config.doc_to_messages(doc, self.lmms_eval_specific_kwargs)
+                if self.lmms_eval_specific_kwargs is not None and len(inspect.signature(self.config.doc_to_messages).parameters) == 2
+                else self.config.doc_to_messages(
+                    doc,
+                )
+            )
+        elif self.config.doc_to_messages is None and (self.config.doc_to_visual is not None or self.config.doc_to_text is not None):
+            # An auto doc to messages function
+            def auto_doc_to_messages(doc):
+                visuals = self.doc_to_visual(doc)
+                if visuals is None:
+                    visuals = []
+                text = self.doc_to_text(doc)
+                messages = [{"role": "user", "content": []}]
+                content = []
+                for visual in visuals:
+                    if isinstance(visual, PIL_Image.Image):
+                        content.append({"type": "image", "url": visual})
+                    elif isinstance(visual, dict):
+                        content.append({"type": "audio", "url": visual})
+                    elif isinstance(visual, str):
+                        content.append({"type": "video", "url": visual})
+                content.append({"type": "text", "text": text})
+                messages[0]["content"] = content
+                return messages
+
+            return auto_doc_to_messages(doc)
+        else:
+            # eval_logger.warning("Note that doc_to_visual was called but not set in config. Please check if this is a text-only task.")
+            return self.config.doc_to_messages
+
+    def construct_requests(self, doc_id: int, ctx: str, **kwargs) -> Union[List[Instance], Instance]:
+        split = kwargs.get("metadata").get("split")
+        # kwargs.pop("split")
+        assert self.OUTPUT_TYPE == "generate_until", "Currently messages is used for generation only"
+
+        arguments = (ctx, self.doc_to_messages, copy.deepcopy(self.config.generation_kwargs), doc_id, self.config.task, split)
+        return Instance(request_type=self.OUTPUT_TYPE, arguments=arguments, idx=0, **kwargs)
+
+    def __repr__(self):
+        return f"ConfigurableMessagesTask(task_name={getattr(self.config, 'task', None)}," f"output_type={self.OUTPUT_TYPE}," f"num_fewshot={getattr(self.config, 'num_fewshot', None)}," f"num_samples={len(self.eval_docs)})"
